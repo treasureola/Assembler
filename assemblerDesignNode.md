@@ -41,8 +41,7 @@ Address field is only 5 bits (0--31).
 
 4\. Implementation Details
 
-> Input lines are normalized, comments removed, and tokens split by
-> space or comma.
+Input lines are normalized, comments removed, and tokens split by space or comma.
 
 Labels are stored in uppercase in the symbol table.
 
@@ -66,9 +65,8 @@ Final machine codes are written to memory and exported to files.
 
 Objective
 
-> Verify that the assembler correctly handles labels, directives (LOC,
-> DATA), instruction encoding (LDX, LDR, LDA, JZ, HLT), and address
-> relocation.
+Verify that the assembler correctly handles labels, directives (LOC,
+DATA), instruction encoding (LDX, LDR, LDA, JZ, HLT), and address relocation.
 
 Pass Criteria
 
@@ -85,3 +83,4 @@ Output files reflect correct addresses, codes, and source lines.
 The assembler achieves its goal of translating a small assembly language
 into 16-bit code. It is simple and demonstrates the two-pass approach
 clearly. Future
+
