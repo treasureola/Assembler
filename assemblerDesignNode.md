@@ -82,5 +82,6 @@ Output files reflect correct addresses, codes, and source lines.
 
 The assembler achieves its goal of translating a small assembly language
 into 16-bit code. It is simple and demonstrates the two-pass approach
-clearly. Future
+clearly.
+
 
