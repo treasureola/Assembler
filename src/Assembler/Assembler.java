@@ -1,3 +1,5 @@
+package Assembler;
+
 import java.io.*;      // for file input/output (reading and writing files)
 import java.util.*;    // for collections like Map, HashMap, TreeMap, List, etc.
 
@@ -22,6 +24,45 @@ import java.util.*;    // for collections like Map, HashMap, TreeMap, List, etc.
  *        - load.ld    → a machine-readable load file
  */
 public class Assembler {
+    /* -----------------------------------------------------------
+     * Main Method
+     * -----------------------------------------------------------
+     * Orchestrates everything:
+     *   1. Read source.src program
+     *   2. Pass 1 → build symbol table
+     *   3. Pass 2 → generate machine code
+     *   4. Write output files
+     */
+    public static void main(String[] args) throws IOException {
+        System.out.println("Assembler running...");
+
+        // Load source.src from inside the JAR
+        InputStream input = Assembler.class.getResourceAsStream("source.src");
+        if (input == null) {
+            System.err.println("source.src not found inside JAR");
+            return;
+        }
+
+        List<String> program = new ArrayList<>();
+
+        // Read the source file line by line
+        try (BufferedReader br = new BufferedReader(new InputStreamReader(input))) {
+            String line;
+            while ((line = br.readLine()) != null) {
+                program.add(line);
+            }
+        }
+
+        // Two-pass assembler process
+        pass1(program);
+        pass2(program);
+
+        // Generate outputs in working directory
+        generateListing("output.lst");
+        generateLoadFile("load.ld");
+
+        System.out.println("Assembler completed. Output files: output.lst, load.ld");
+    }
 
     /* -----------------------------------------------------------
      * 1) Opcode Table
@@ -142,7 +183,8 @@ public class Assembler {
     // Convert integer to 6-digit octal (used in output files)
     private static String toOctal(int value) {
 //        TO:DO: calculate octals
-        return "";
+        int val = value & 0xFFFF;  // ensure 16-bit unsigned range
+        return String.format("%06o", val);
     }
 
     // Parse number (decimal or hex "0x...") into integer
@@ -302,6 +344,7 @@ public class Assembler {
         }
     }
 
+
     /* -----------------------------------------------------------
      * Generate Listing File
      * -----------------------------------------------------------
@@ -348,34 +391,26 @@ public class Assembler {
         }
     }
 
-    /* -----------------------------------------------------------
-     * Main Method
-     * -----------------------------------------------------------
-     * Orchestrates everything:
-     *   1. Read source.src program
-     *   2. Pass 1 → build symbol table
-     *   3. Pass 2 → generate machine code
-     *   4. Write output files
-     */
-    public static void main(String[] args) throws IOException {
-        String sourceFile = "source.src"; // input file name
-        List<String> program = new ArrayList<>();
-
-        // Read the source.src program into memory
-        try (BufferedReader br = new BufferedReader(new FileReader(sourceFile))) {
-            String line;
-            while ((line = br.readLine()) != null) program.add(line);
-        } catch (FileNotFoundException fnf) {
-            System.err.println("Source file not found: " + sourceFile);
-            return;
-        }
-
-        // Two-pass assembler process
-        pass1(program);
-        pass2(program);
-
-        // Generate outputs
-        generateListing("output.lst");
-        generateLoadFile("load.ld");
-    }
+//    public static void main(String[] args) throws IOException {
+//        System.out.println("Assembler running...");
+//        String sourceFile = "source.src"; // input file name
+//        List<String> program = new ArrayList<>();
+//
+//        // Read the source.src program into memory
+//        try (BufferedReader br = new BufferedReader(new FileReader(sourceFile))) {
+//            String line;
+//            while ((line = br.readLine()) != null) program.add(line);
+//        } catch (FileNotFoundException fnf) {
+//            System.err.println("Source file not found: " + sourceFile);
+//            return;
+//        }
+//
+//        // Two-pass assembler process
+//        pass1(program);
+//        pass2(program);
+//
+//        // Generate outputs
+//        generateListing("output.lst");
+//        generateLoadFile("load.ld");
+//    }
 }
