@@ -183,8 +183,7 @@ public class Assembler {
     // Convert integer to 6-digit octal (used in output files)
     private static String toOctal(int value) {
 //        TO:DO: calculate octals
-        int val = value & 0xFFFF;  // ensure 16-bit unsigned range
-        return String.format("%06o", val);
+        return " ";
     }
 
     // Parse number (decimal or hex "0x...") into integer
@@ -390,27 +389,4 @@ public class Assembler {
             }
         }
     }
-
-//    public static void main(String[] args) throws IOException {
-//        System.out.println("Assembler running...");
-//        String sourceFile = "source.src"; // input file name
-//        List<String> program = new ArrayList<>();
-//
-//        // Read the source.src program into memory
-//        try (BufferedReader br = new BufferedReader(new FileReader(sourceFile))) {
-//            String line;
-//            while ((line = br.readLine()) != null) program.add(line);
-//        } catch (FileNotFoundException fnf) {
-//            System.err.println("Source file not found: " + sourceFile);
-//            return;
-//        }
-//
-//        // Two-pass assembler process
-//        pass1(program);
-//        pass2(program);
-//
-//        // Generate outputs
-//        generateListing("output.lst");
-//        generateLoadFile("load.ld");
-//    }
 }
