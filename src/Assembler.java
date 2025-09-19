@@ -142,7 +142,8 @@ public class Assembler {
     // Convert integer to 6-digit octal (used in output files)
     private static String toOctal(int value) {
 //        TO:DO: calculate octals
-        return "";
+        int word = value & 0xFFFF;             // keep only 16 bits
+        return String.format("%06o", word);    // base-8, 6 characters wide, left-padded with zeros
     }
 
     // Parse number (decimal or hex "0x...") into integer
