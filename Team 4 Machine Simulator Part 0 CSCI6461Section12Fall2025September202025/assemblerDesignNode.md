@@ -8,7 +8,7 @@ assembler supports labels, basic instructions, and directives such as
 LOC and DATA. The final outputs are a listing file for debugging and a
 load file for execution.
 
-2\. System Overview
+# 2\. System Overview
 
 The assembler works in two passes:
 
@@ -23,7 +23,7 @@ output.lst: address, binary code, and original source line.
 
 load.ld: address--code pairs for execution.
 
-3\. Design Goals and Constraints
+# 3\. Design Goals and Constraints
 
 Goals:
 
@@ -39,7 +39,7 @@ Instructions are limited to 16 bits with fixed fields.
 
 Address field is only 5 bits (0--31).
 
-4\. Implementation Details
+# 4\. Implementation Details
 
 Input lines are normalized, comments removed, and tokens split by
 space or comma.
@@ -62,7 +62,7 @@ DATA reserves one word.
 
 Final machine codes are written to memory and exported to files.
 
-5\. Testing Plan
+# 5\. Testing Plan
 
 Objective:
 
@@ -80,11 +80,12 @@ Instruction encodings match the defined opcode table.
 
 Output files reflect correct addresses, codes, and source lines.
 
-6\. Conclusion
+# 6\. Conclusion
 
 The assembler achieves its goal of translating a small assembly language
 into 16-bit code. It is simple and demonstrates the two-pass approach
 clearly. 
+
 
 
 
