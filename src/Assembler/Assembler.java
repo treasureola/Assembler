@@ -1,7 +1,7 @@
 package Assembler;
 
-import java.io.*;      // for file input/output (reading and writing files)
-import java.util.*;    // for collections like Map, HashMap, TreeMap, List, etc.
+import java.io.*;
+import java.util.*;
 
 /**
  * Assembler.java
@@ -9,19 +9,19 @@ import java.util.*;    // for collections like Map, HashMap, TreeMap, List, etc.
  * A simple two-pass assembler implementation.
  *
  * Overview:
- *   An assembler translates assembly language (human-readable mnemonics)
- *   into binary machine code (the actual instructions run by the CPU).
+ *   An assembler translates assembly language
+ *   into binary machine code
  *
  * This assembler does:
- *   1. Reads an input file called "source.src.src".
+ *   1. Reads an input file called "source.src".
  *   2. Pass 1 → Builds a SYMBOL TABLE:
  *        - Maps labels (like LOOP, START) to memory addresses.
  *   3. Pass 2 → Generates MACHINE CODE:
  *        - Converts each assembly instruction or data definition into
  *          a 16-bit binary representation.
  *   4. Outputs:
- *        - output.lst → a human-readable listing file
- *        - load.ld    → a machine-readable load file
+ *        - output.lst
+ *        - load.ld
  */
 public class Assembler {
     /* -----------------------------------------------------------
@@ -36,33 +36,34 @@ public class Assembler {
     public static void main(String[] args) throws IOException {
         System.out.println("Assembler running...");
 
-        // Load source.src from inside the JAR
-        InputStream input = Assembler.class.getResourceAsStream("source.src");
-        if (input == null) {
-            System.err.println("source.src not found inside JAR");
+        String sourceFile = "source.src";
+        File file = new File(sourceFile);
+
+        if (!file.exists()) {
+            System.err.println("Error: source.src not found in current directory.");
             return;
         }
 
         List<String> program = new ArrayList<>();
 
         // Read the source file line by line
-        try (BufferedReader br = new BufferedReader(new InputStreamReader(input))) {
+        try (BufferedReader br = new BufferedReader(new FileReader(file))) {
             String line;
             while ((line = br.readLine()) != null) {
                 program.add(line);
             }
         }
 
-        // Two-pass assembler process
+        // Run assembler
         pass1(program);
         pass2(program);
-
-        // Generate outputs in working directory
         generateListing("output.lst");
         generateLoadFile("load.ld");
 
         System.out.println("Assembler completed. Output files: output.lst, load.ld");
     }
+
+
 
     /* -----------------------------------------------------------
      * 1) Opcode Table
@@ -91,7 +92,7 @@ public class Assembler {
         opcodeTable.put("LDR", "000001"); // Load register from memory
         opcodeTable.put("LDA", "000011"); // Load accumulator
         opcodeTable.put("STR", "000010"); // Store register to memory
-        opcodeTable.put("LDX", "101001"); // Load index register
+        opcodeTable.put("LDX", "100001"); // Load index register
         opcodeTable.put("STX", "101010"); // Store index register
 
         // Transfer (branch/jump) Instructions
@@ -120,7 +121,7 @@ public class Assembler {
 
         // Shift/Rotate Instructions
         opcodeTable.put("SRC", "011111"); // Shift register
-        opcodeTable.put("RRC", "100000"); // Rotate register
+        opcodeTable.put("RRC", "100010"); // Rotate register
 
         // I/O Instructions
         opcodeTable.put("IN",  "010100"); // Input from device
@@ -133,7 +134,7 @@ public class Assembler {
         opcodeTable.put("VADD",  "100101"); // Vector Add
         opcodeTable.put("VSUB",  "100110"); // Vector Subtract
         opcodeTable.put("CNVRT", "100111"); // Convert integer ↔ float
-        opcodeTable.put("LDFR",  "101000"); // Load floating register
+        opcodeTable.put("LDFR",  "010000"); // Load floating register
         opcodeTable.put("STFR",  "101001"); // Store floating register
     }
 
@@ -182,8 +183,8 @@ public class Assembler {
 
     // Convert integer to 6-digit octal (used in output files)
     private static String toOctal(int value) {
-        int word = value & 0xFFFF;             // keep only 16 bits
-        return String.format("%06o", word);    // base-8, 6 characters wide, left-padded with zeros
+        int val = value & 0xFFFF;  // ensure 16-bit unsigned range
+        return String.format("%06o", val);
     }
 
     // Parse number (decimal or hex "0x...") into integer
@@ -262,7 +263,7 @@ public class Assembler {
     public static void pass2(List<String> lines) {
         int loc = 0;
         for (String rawLine : lines) {
-            String original = rawLine; // keep original for listing
+            String original = rawLine;
             String line = rawLine;
 
             // Strip comments
@@ -271,7 +272,7 @@ public class Assembler {
             line = line.trim();
             if (line.isEmpty()) continue;
 
-            // Remove label part
+            // Remove label if present
             if (line.contains(":")) {
                 String[] parts = line.split(":", 2);
                 line = parts.length > 1 ? parts[1].trim() : "";
@@ -281,14 +282,14 @@ public class Assembler {
             String[] tokens = line.split("[,\\s]+");
             String instr = tokens[0].toUpperCase();
 
-            // Handle LOC directive
+            // LOC directive
             if (instr.equals("LOC")) {
                 loc = Integer.parseInt(tokens[1]);
                 locMap.put(loc, original);
                 continue;
             }
 
-            // Handle DATA directive
+            // DATA directive
             if (instr.equals("DATA")) {
                 String val = tokens[1];
                 Integer num = parseNumber(val);
@@ -299,12 +300,12 @@ public class Assembler {
                 continue;
             }
 
-            // Handle normal instructions
+            // Get opcode
             String opcode = opcodeTable.getOrDefault(instr, "000000");
             String R = "00", IX = "00", I = "0";
             int addr = 0;
 
-            // Special case: HLT (no operands)
+            // Special case: HLT
             if (instr.equals("HLT")) {
                 memory.put(loc, opcode + "0000000000");
                 sourceMap.put(loc, original);
@@ -312,28 +313,39 @@ public class Assembler {
                 continue;
             }
 
-            // Handle LDX differently (since R field not used)
-            if (instr.equals("LDX") && tokens.length == 3) {
+            // Special case: LDX
+            if (instr.equals("LDX") && tokens.length >= 3) {
                 R = "00";
-                IX = ixToBin(tokens[1]);
+                IX = toBinary(Integer.parseInt(tokens[1]), 2);  // convert "1" → 01 (binary)
                 String operand = tokens[2];
-                Integer num = parseNumber(operand);
-                addr = (num != null) ? num : symbolTable.getOrDefault(operand.toUpperCase(), 0);
-            } else {
-                // General case: parse operands
-                if (tokens.length > 1) R = regToBin(tokens[1]);
-                if (tokens.length > 2) IX = ixToBin(tokens[2]);
+                addr = parseNumber(operand) != null ? parseNumber(operand) : symbolTable.getOrDefault(operand.toUpperCase(), 0);
+
                 if (tokens.length > 3) {
-                    String operand = tokens[3];
-                    Integer num = parseNumber(operand);
-                    addr = (num != null) ? num : symbolTable.getOrDefault(operand.toUpperCase(), 0);
+                    I = (tokens[3].equals("1") || tokens[3].equalsIgnoreCase("I")) ? "1" : "0";
                 }
-                if (tokens.length > 4) {
-                    I = (tokens[4].equals("1") || tokens[4].equalsIgnoreCase("I")) ? "1" : "0";
-                }
+
+                String address = toBinary(addr, 5);
+                String machineCode = opcode + R + IX + I + address;
+
+                memory.put(loc, machineCode);
+                sourceMap.put(loc, original);
+                loc++;
+                continue;
             }
 
-            // Build final machine code
+
+            // General instruction case
+            if (tokens.length > 1) R = regToBin(tokens[1]);
+            if (tokens.length > 2) IX = ixToBin(tokens[2]);
+            if (tokens.length > 3) {
+                String operand = tokens[3];
+                Integer num = parseNumber(operand);
+                addr = (num != null) ? num : symbolTable.getOrDefault(operand.toUpperCase(), 0);
+            }
+            if (tokens.length > 4) {
+                I = (tokens[4].equals("1") || tokens[4].equalsIgnoreCase("I")) ? "1" : "0";
+            }
+
             String address = toBinary(addr, 5);
             String machineCode = opcode + R + IX + I + address;
 
@@ -382,11 +394,20 @@ public class Assembler {
      */
     public static void generateLoadFile(String outFile) throws IOException {
         try (PrintWriter writer = new PrintWriter(new FileWriter(outFile))) {
-            for (int addr : memory.keySet()) {
+            List<Integer> addresses = new ArrayList<>(memory.keySet());
+
+            for (int i = 0; i < addresses.size(); i++) {
+                int addr = addresses.get(i);
                 String addrOct = toOctal(addr);
-                String valOct  = toOctal(Integer.parseInt(memory.get(addr), 2));
-                writer.printf("%s %s%n", addrOct, valOct);
+                String valOct = toOctal(Integer.parseInt(memory.get(addr), 2));
+
+                if (i < addresses.size() - 1) {
+                    writer.printf("%s %s%n", addrOct, valOct);  // with newline
+                } else {
+                    writer.printf("%s %s", addrOct, valOct);    // no trailing newline
+                }
             }
         }
     }
+
 }
