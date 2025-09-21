@@ -20,7 +20,7 @@ commit ca7f22e5df96c15de526b7e08acbbb310357de2b
 Author: Olamide Treasure Oluwalade - G30351296 <112403968+treasureola@users.noreply.github.com>
 Date:   Sat Sep 20 21:14:24 2025 -0400
 
-    Delete Assembler.Team 4 Machine Simulator Part 0 CSCI6461Section12Fall2025September202025/instructionOnHowToRun.md
+    Delete Assembler.Submission_Documents/instructionOnHowToRun.md
 
 commit 86fe189b960d33317ac259a7744e894877ef163b
 Author: Olamide Treasure Oluwalade - G30351296 <112403968+treasureola@users.noreply.github.com>
