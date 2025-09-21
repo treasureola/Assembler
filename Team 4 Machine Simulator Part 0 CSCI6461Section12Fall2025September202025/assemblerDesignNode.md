@@ -1,6 +1,6 @@
 Design Note : Java Assembler
 
-### 1\. Introduction
+# 1\. Introduction
 
 This project implements a simple assembler in Java. Its purpose is to
 translate a custom assembly language into 16-bit machine code. The
@@ -85,5 +85,6 @@ Output files reflect correct addresses, codes, and source lines.
 The assembler achieves its goal of translating a small assembly language
 into 16-bit code. It is simple and demonstrates the two-pass approach
 clearly. 
+
 
 
