@@ -1,5 +1,5 @@
-public class MBR {
-    private int data;
-    public void setData(int value) { this.data = value & 0xFFFF; }
-    public int getData() { return data; }
+public class MAR {
+    private int address;
+    public void setAddress(int addr) { this.address = addr; }
+    public int getAddress() { return address; }
 }
