@@ -1,5 +1,5 @@
 public class Memory {
-    // 2048 words of 16 bits (used int for simplicity)
+    // 2048 words of 16 bits 
     private int[] data = new int[2048];
     
     public Memory() {
@@ -7,7 +7,7 @@ public class Memory {
     }
 
     /**
-     * Clear all memory contents to zero (called on power-up/reset).
+     * Clear all memory contents to zero on reset.
      */
     public void reset() {
         for (int i = 0; i < data.length; i++) {
@@ -16,13 +16,13 @@ public class Memory {
     }
 
     /**
-     * Read a word from the given address. The result will be placed into the MBR.
-     * @param address memory address (0–2047)
-     * @return the 16-bit value at that address (0 if invalid)
+     * Read a word from the given address, then places the result into the MBR.
+     * address memory address (0–2047)
+     * this then returns the 16-bit value at that address, 0 if invalid
      */
     public int readWord(int address) {
         if (address < 0 || address >= data.length) {
-            // Handle invalid address gracefully
+            // Handles invalid addresses
             System.err.println("Memory read error: invalid address " + address);
             return 0;
         }
@@ -31,12 +31,12 @@ public class Memory {
 
     /**
      * Write a word to the given address. Uses the value from the MBR.
-     * @param address memory address (0–2047)
-     * @param value 16-bit value to write
+     * address memory address (0–2047)
+     * value 16-bit value to write
      */
     public void writeWord(int address, int value) {
         if (address < 0 || address >= data.length) {
-            // Handle invalid address gracefully
+            // Handle invalid addresses 
             System.err.println("Memory write error: invalid address " + address);
             return;
         }
