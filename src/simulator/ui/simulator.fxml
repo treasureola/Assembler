@@ -1,0 +1,215 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<?import javafx.geometry.*?>
+<?import javafx.scene.control.*?>
+<?import javafx.scene.layout.*?>
+<BorderPane xmlns="http://javafx.com/javafx" xmlns:fx="http://javafx.com/fxml"
+            fx:controller="Simulator.ui.SimulatorController" prefWidth="1000" prefHeight="610">
+    <center>
+        <GridPane hgap="12" vgap="10">
+            <padding>
+                <Insets top="15.0" right="15.0" bottom="15.0" left="15.0"/>
+            </padding>
+            <columnConstraints>
+                <ColumnConstraints percentWidth="55"/>
+                <ColumnConstraints percentWidth="45"/>
+            </columnConstraints>
+
+            <!-- 左侧：寄存器区 -->
+            <TitledPane text="CSCI 6461 Machine Simulator" expanded="true" GridPane.columnIndex="0" GridPane.rowIndex="0">
+                <content>
+                    <GridPane hgap="10" vgap="8">
+                        <padding>
+                            <Insets top="10.0" right="10.0" bottom="10.0" left="10.0"/>
+                        </padding>
+                        <columnConstraints>
+                            <ColumnConstraints percentWidth="40"/>
+                            <ColumnConstraints percentWidth="60"/>
+                        </columnConstraints>
+
+                        <!-- GPR -->
+                        <Label text="GPR" style="-fx-font-weight: bold;" GridPane.columnIndex="0" GridPane.rowIndex="0"/>
+                        <GridPane hgap="6" vgap="6" GridPane.columnIndex="0" GridPane.rowIndex="1">
+                            <columnConstraints>
+                                <ColumnConstraints prefWidth="26" minWidth="24" halignment="RIGHT"/>
+                                <ColumnConstraints percentWidth="70" hgrow="ALWAYS"/>
+                                <ColumnConstraints prefWidth="26" minWidth="24"/>
+                            </columnConstraints>
+
+                            <!-- R0 -->
+                            <Label text="0" GridPane.columnIndex="0" GridPane.rowIndex="0"/>
+                            <TextField fx:id="r0Field" GridPane.columnIndex="1" GridPane.rowIndex="0" promptText="R0"/>
+                            <ToggleButton fx:id="r0Btn" GridPane.columnIndex="2" GridPane.rowIndex="0"
+                                          prefWidth="18" prefHeight="18"
+                                          style="-fx-background-color:#6fc8ff; -fx-background-radius:4; -fx-padding:0;"/>
+
+                            <!-- R1 -->
+                            <Label text="1" GridPane.columnIndex="0" GridPane.rowIndex="1"/>
+                            <TextField fx:id="r1Field" GridPane.columnIndex="1" GridPane.rowIndex="1" promptText="R1"/>
+                            <ToggleButton fx:id="r1Btn" GridPane.columnIndex="2" GridPane.rowIndex="1"
+                                          prefWidth="18" prefHeight="18"
+                                          style="-fx-background-color:#6fc8ff; -fx-background-radius:4; -fx-padding:0;"/>
+
+                            <!-- R2 -->
+                            <Label text="2" GridPane.columnIndex="0" GridPane.rowIndex="2"/>
+                            <TextField fx:id="r2Field" GridPane.columnIndex="1" GridPane.rowIndex="2" promptText="R2"/>
+                            <ToggleButton fx:id="r2Btn" GridPane.columnIndex="2" GridPane.rowIndex="2"
+                                          prefWidth="18" prefHeight="18"
+                                          style="-fx-background-color:#6fc8ff; -fx-background-radius:4; -fx-padding:0;"/>
+
+                            <!-- R3 -->
+                            <Label text="3" GridPane.columnIndex="0" GridPane.rowIndex="3"/>
+                            <TextField fx:id="r3Field" GridPane.columnIndex="1" GridPane.rowIndex="3" promptText="R3"/>
+                            <ToggleButton fx:id="r3Btn" GridPane.columnIndex="2" GridPane.rowIndex="3"
+                                          prefWidth="18" prefHeight="18"
+                                          style="-fx-background-color:#6fc8ff; -fx-background-radius:4; -fx-padding:0;"/>
+                        </GridPane>
+
+                        <!-- IXR -->
+                        <Label text="IXR" style="-fx-font-weight: bold;" GridPane.columnIndex="1" GridPane.rowIndex="0"/>
+                        <GridPane hgap="6" vgap="6" GridPane.columnIndex="1" GridPane.rowIndex="1">
+                            <columnConstraints>
+                                <ColumnConstraints prefWidth="26" minWidth="24" halignment="RIGHT"/>
+                                <ColumnConstraints percentWidth="70" hgrow="ALWAYS"/>
+                                <ColumnConstraints prefWidth="26" minWidth="24"/>
+                            </columnConstraints>
+
+                            <!-- X1 -->
+                            <Label text="1" GridPane.columnIndex="0" GridPane.rowIndex="0"/>
+                            <TextField fx:id="x1Field" GridPane.columnIndex="1" GridPane.rowIndex="0" promptText="X1"/>
+                            <ToggleButton fx:id="x1Btn" GridPane.columnIndex="2" GridPane.rowIndex="0"
+                                          prefWidth="18" prefHeight="18"
+                                          style="-fx-background-color:#6fc8ff; -fx-background-radius:4; -fx-padding:0;"/>
+
+                            <!-- X2 -->
+                            <Label text="2" GridPane.columnIndex="0" GridPane.rowIndex="1"/>
+                            <TextField fx:id="x2Field" GridPane.columnIndex="1" GridPane.rowIndex="1" promptText="X2"/>
+                            <ToggleButton fx:id="x2Btn" GridPane.columnIndex="2" GridPane.rowIndex="1"
+                                          prefWidth="18" prefHeight="18"
+                                          style="-fx-background-color:#6fc8ff; -fx-background-radius:4; -fx-padding:0;"/>
+
+                            <!-- X3 -->
+                            <Label text="3" GridPane.columnIndex="0" GridPane.rowIndex="2"/>
+                            <TextField fx:id="x3Field" GridPane.columnIndex="1" GridPane.rowIndex="2" promptText="X3"/>
+                            <ToggleButton fx:id="x3Btn" GridPane.columnIndex="2" GridPane.rowIndex="2"
+                                          prefWidth="18" prefHeight="18"
+                                          style="-fx-background-color:#6fc8ff; -fx-background-radius:4; -fx-padding:0;"/>
+                        </GridPane>
+
+
+                        <!-- Reg -->
+                        <GridPane hgap="8" vgap="8"
+                                  GridPane.columnIndex="0" GridPane.rowIndex="2" GridPane.columnSpan="2">
+
+                            <columnConstraints>
+                                <ColumnConstraints prefWidth="60" minWidth="50" halignment="RIGHT"/>
+                                <ColumnConstraints hgrow="ALWAYS"/>
+                                <ColumnConstraints prefWidth="60" minWidth="50" halignment="RIGHT"/>
+                                <ColumnConstraints hgrow="ALWAYS"/>
+                            </columnConstraints>
+
+                            <!-- 第 0 行 -->
+                            <Label text="PC" GridPane.columnIndex="0" GridPane.rowIndex="0"/>
+                            <TextField fx:id="pcField" GridPane.columnIndex="1" GridPane.rowIndex="0" prefColumnCount="6"/>
+
+                            <Label text="MAR" GridPane.columnIndex="2" GridPane.rowIndex="0"/>
+                            <TextField fx:id="marField" GridPane.columnIndex="3" GridPane.rowIndex="0" prefColumnCount="6"/>
+
+                            <!-- 第 1 行 -->
+                            <Label text="MBR" GridPane.columnIndex="0" GridPane.rowIndex="1"/>
+                            <TextField fx:id="mbrField" GridPane.columnIndex="1" GridPane.rowIndex="1" prefColumnCount="6"/>
+
+                            <Label text="IR" GridPane.columnIndex="2" GridPane.rowIndex="1"/>
+                            <TextField fx:id="irField" GridPane.columnIndex="3" GridPane.rowIndex="1" prefColumnCount="6"/>
+
+                            <!-- 第 2 行 -->
+                            <Label text="CC" GridPane.columnIndex="0" GridPane.rowIndex="2"/>
+                            <TextField fx:id="ccField" GridPane.columnIndex="1" GridPane.rowIndex="2" prefColumnCount="4"/>
+
+                            <Label text="MFR" GridPane.columnIndex="2" GridPane.rowIndex="2"/>
+                            <TextField fx:id="mfrField" GridPane.columnIndex="3" GridPane.rowIndex="2" prefColumnCount="6"/>
+                        </GridPane>
+
+
+                        <GridPane hgap="8" vgap="6" GridPane.columnIndex="0" GridPane.rowIndex="3" GridPane.columnSpan="2">
+                            <columnConstraints>
+                                <ColumnConstraints percentWidth="20"/>
+                                <ColumnConstraints percentWidth="65"/>
+                                <ColumnConstraints percentWidth="15"/>
+                            </columnConstraints>
+                            <Label text="BINARY"/>
+                            <HBox fx:id="binaryLeds" spacing="4" GridPane.columnIndex="1">
+
+                            </HBox>
+                            <Label text="OCTAL INPUT" GridPane.columnIndex="0" GridPane.rowIndex="1"/>
+                            <TextField fx:id="octalInput" GridPane.columnIndex="2" GridPane.rowIndex="1"/>
+                        </GridPane>
+
+                        <!-- Load / Store / Run  -->
+                        <GridPane hgap="12" vgap="6" GridPane.columnIndex="0" GridPane.rowIndex="4" GridPane.columnSpan="2">
+                            <columnConstraints>
+                                <ColumnConstraints percentWidth="25"/>
+                                <ColumnConstraints percentWidth="25"/>
+                                <ColumnConstraints percentWidth="25"/>
+                                <ColumnConstraints percentWidth="25"/>
+                            </columnConstraints>
+
+                            <VBox spacing="6">
+                                <CheckBox text="Load"/>   <Button text="Load"   onAction="#onLoad"/>
+                                <CheckBox text="Load+" /> <Button text="Load+"  onAction="#onLoadPlus"/>
+                            </VBox>
+                            <VBox spacing="6" GridPane.columnIndex="1">
+                                <CheckBox text="Store"/>  <Button text="Store"  onAction="#onStore"/>
+                                <CheckBox text="Store+"/> <Button text="Store+" onAction="#onStorePlus"/>
+                            </VBox>
+                            <VBox spacing="6" GridPane.columnIndex="2">
+                                <CheckBox text="Run"/>    <Button text="Run"    onAction="#onRun"/>
+                                <CheckBox text="Step"/>   <Button text="Step"   onAction="#onStep"/>
+                            </VBox>
+                            <VBox spacing="6" GridPane.columnIndex="3">
+                                <CheckBox text="Halt"/>   <Button text="Halt"   onAction="#onHalt"/>
+                                <CheckBox text="IPL"  selected="true"/> <Button text="IPL" onAction="#onIPL"/>
+                            </VBox>
+                        </GridPane>
+
+                        <!-- Program File -->
+                        <GridPane hgap="8" vgap="6" GridPane.columnIndex="0" GridPane.rowIndex="5" GridPane.columnSpan="2">
+                            <columnConstraints>
+                                <ColumnConstraints percentWidth="85"/>
+                                <ColumnConstraints percentWidth="15"/>
+                            </columnConstraints>
+                            <TextField fx:id="programFileField" promptText="Program File (.lst)"/>
+                            <Button text="Browse..." onAction="#onBrowse" GridPane.columnIndex="1"/>
+                        </GridPane>
+
+                    </GridPane>
+                </content>
+            </TitledPane>
+
+            <VBox spacing="10" GridPane.columnIndex="1" GridPane.rowIndex="0">
+                <TitledPane text="Cache Content (Program II)" expanded="true">
+                    <content>
+                        <TextArea fx:id="cacheArea" editable="false" prefRowCount="10" disable="true"/>
+                    </content>
+                </TitledPane>
+
+                <TitledPane text="Printer" expanded="true">
+                    <content>
+                        <TextArea fx:id="printerArea" prefRowCount="6" editable="false"/>
+                    </content>
+                </TitledPane>
+
+                <TitledPane text="Console Input" expanded="true">
+                    <content>
+                        <HBox spacing="8" alignment="CENTER_LEFT">
+                            <padding>
+                                <Insets top="8.0" right="8.0" bottom="8.0" left="8.0"/>
+                            </padding>
+                            <TextField fx:id="consoleInput" HBox.hgrow="ALWAYS"/>
+                            <Button text="Send" onAction="#onConsoleSend"/>
+                        </HBox>
+                    </content>
+                </TitledPane>
+            </VBox>
+        </GridPane>
+    </center>
+</BorderPane>
