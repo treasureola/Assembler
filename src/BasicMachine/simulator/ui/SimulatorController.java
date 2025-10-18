@@ -1,8 +1,8 @@
-package Simulator.ui;
+package BasicMachine.simulator.ui;
 
-import Simulator.ProgramLoader;
-import Simulator.core.CPU;
-import Simulator.core.Utils;
+import BasicMachine.simulator.ProgramLoader;
+import BasicMachine.simulator.core.CPU;
+import BasicMachine.simulator.core.Utils;
 import javafx.application.Platform;
 import javafx.event.ActionEvent;
 import javafx.event.EventHandler;

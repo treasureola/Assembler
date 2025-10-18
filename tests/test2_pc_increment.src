@@ -1,0 +1,15 @@
+; Test Program 2: Program Counter Increment Test
+; This program tests PC increment through multiple instructions
+
+        LOC     200         ; Start at address 200
+START:  LDR     0,0,0       ; R0 = Memory[0] (PC should be 201)
+        LDR     1,0,0       ; R1 = Memory[0] (PC should be 202)
+        LDR     2,0,0       ; R2 = Memory[0] (PC should be 203)
+        LDR     3,0,0       ; R3 = Memory[0] (PC should be 204)
+        
+        ; Test with different instruction types
+        LDA     0,0,0       ; R0 = 0 (PC should be 205)
+        STR     0,0,210     ; Memory[210] = R0 (PC should be 206)
+        
+        ; Halt
+        HLT                 ; Stop at PC 207

@@ -1,3 +1,5 @@
+package BasicMachine.Memory_Module;
+
 public class Memory {
     // 2048 words of 16 bits 
     private int[] data = new int[2048];
@@ -41,5 +43,32 @@ public class Memory {
             return;
         }
         data[address] = value & 0xFFFF;  // mask to 16 bits
+    }
+    
+    /**
+     * Load program from load.ld file
+     */
+    public void load(String filename) throws Exception {
+        java.io.BufferedReader br = new java.io.BufferedReader(new java.io.FileReader(filename));
+        String line;
+        while ((line = br.readLine()) != null) {
+            String[] parts = line.trim().split("\\s+");
+            if (parts.length >= 2) {
+                int addr = Integer.parseInt(parts[0], 8); // octal
+                int value = Integer.parseInt(parts[1], 8); // octal
+                writeWord(addr, value);
+            }
+        }
+        br.close();
+    }
+    
+    /**
+     * Get program start address (first non-zero instruction)
+     */
+    public int getProgramStartAddress() {
+        for (int i = 0; i < data.length; i++) {
+            if (data[i] != 0) return i;
+        }
+        return 0;
     }
 }
