@@ -84,10 +84,10 @@ java -cp ../out TestGUIMemoryIntegration
 Current test results:
 
 - **Unit Tests**: 15/20 passed (75%)
-- **Memory System**: ✅ All tests passed
-- **Register Operations**: ✅ All tests passed
-- **Program Loading**: ✅ All tests passed
-- **Integration**: ✅ All tests passed
+- **Memory System**: All tests passed
+- **Register Operations**: All tests passed
+- **Program Loading**: All tests passed
+- **Integration**: All tests passed
 
 ## Adding New Tests
 

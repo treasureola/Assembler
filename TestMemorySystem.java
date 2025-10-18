@@ -9,7 +9,7 @@ public class TestMemorySystem {
         // Test 1: Memory Initialization
         System.out.println("1. Testing Memory Initialization:");
         Memory memory = new Memory();
-        System.out.println("   PASS: Memory created with 2048 words");
+        System.out.println("   ✓ Memory created with 2048 words");
         
         // Test 2: Memory Reset (should be all zeros)
         System.out.println("\n2. Testing Memory Reset:");
@@ -21,7 +21,7 @@ public class TestMemorySystem {
                 break;
             }
         }
-        System.out.println("   PASS: Memory reset: " + (allZero ? "PASS" : "FAIL"));
+        System.out.println("   ✓ Memory reset: " + (allZero ? "PASS" : "FAIL"));
         
         // Test 3: Basic Read/Write Operations
         System.out.println("\n3. Testing Basic Read/Write Operations:");
@@ -89,7 +89,7 @@ public class TestMemorySystem {
         System.out.println("\n10. Testing Program Loading:");
         try {
             memory.load("load.ld");
-            System.out.println("   PASS: Program loaded successfully from load.ld");
+            System.out.println("   ✓ Program loaded successfully from load.ld");
             
             // Show first few loaded values
             System.out.println("   First few loaded values:");
@@ -100,7 +100,7 @@ public class TestMemorySystem {
                 }
             }
         } catch (Exception e) {
-            System.out.println("   FAIL: Program loading failed: " + e.getMessage());
+            System.out.println("   ✗ Program loading failed: " + e.getMessage());
         }
         
         System.out.println("\n=== Memory System Test Complete ===");

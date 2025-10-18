@@ -17,9 +17,9 @@ NC='\033[0m' # No Color
 # Function to print colored output
 print_status() {
     if [ $1 -eq 0 ]; then
-        echo -e "${GREEN}✓ $2${NC}"
+        echo -e "${GREEN}PASS: $2${NC}"
     else
-        echo -e "${RED}✗ $2${NC}"
+        echo -e "${RED}FAIL: $2${NC}"
     fi
 }
 

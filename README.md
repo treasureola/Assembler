@@ -2,7 +2,150 @@
 
 A collaborative Java implementation of a 16-bit computer simulator with assembler, CPU core, memory system, and graphical user interface.
 
-## 🏗️ Project Structure
+## Prerequisites
+
+Before running the Basic Machine Simulator, ensure you have the following installed:
+
+### Required Software
+
+- **Java 11 or higher** (OpenJDK recommended)
+- **JavaFX runtime** (included with OpenJDK 11+)
+- **Linux/Windows/macOS** operating system
+
+### Check Java Installation
+
+```bash
+java -version
+javac -version
+```
+
+If Java is not installed:
+
+- **Ubuntu/Debian**: `sudo apt install openjdk-11-jdk openjfx`
+- **Windows**: Download from [Oracle](https://www.oracle.com/java/) or [OpenJDK](https://openjdk.java.net/)
+- **macOS**: `brew install openjdk@11` or download from Oracle
+
+## Quick Start
+
+### 1. Download/Clone the Project
+
+```bash
+# If using Git
+git clone <repository-url>
+cd Assembler
+
+# Or download and extract the ZIP file
+# Navigate to the extracted folder
+```
+
+### 2. Compile the Project
+
+```bash
+# Compile main source code
+javac -d out src/Assembler/*.java
+javac -d out src/BasicMachine/**/*.java
+
+# Compile test suite (optional)
+javac -cp out -d out tests/*.java
+```
+
+### 3. Run the Simulator
+
+#### Option A: GUI Simulator (Recommended)
+
+```bash
+# Linux
+java --module-path /usr/share/openjfx/lib --add-modules javafx.controls,javafx.fxml -cp out BasicMachine.simulator.ui.SimulatorApp
+
+# Windows (adjust JavaFX path as needed)
+java --module-path "C:\Program Files\Java\javafx-11\lib" --add-modules javafx.controls,javafx.fxml -cp out BasicMachine.simulator.ui.SimulatorApp
+
+# macOS
+java --module-path /opt/homebrew/lib --add-modules javafx.controls,javafx.fxml -cp out BasicMachine.simulator.ui.SimulatorApp
+```
+
+#### Option B: CLI Simulator
+
+```bash
+java -cp out BasicMachine.CPU_Module.MainSimulator
+```
+
+#### Option C: Assembler Only
+
+```bash
+java -cp out Assembler.Assembler
+```
+
+### 4. Run Tests
+
+```bash
+# Run all tests
+./run_tests.sh
+
+# Or run specific tests
+java -cp out TestMemorySystem
+java -cp out TestLoader
+java -cp out FinalTestSuite
+```
+
+## Detailed Instructions
+
+### Running the GUI Simulator
+
+1. **Start the GUI**:
+
+   ```bash
+   java --module-path /usr/share/openjfx/lib --add-modules javafx.controls,javafx.fxml -cp out BasicMachine.simulator.ui.SimulatorApp
+   ```
+
+2. **Load a Program**:
+
+   - Click "Browse" button
+   - Navigate to and select `output.lst` (or any `.lst` file)
+   - Click "IPL" (Initial Program Load)
+
+3. **Execute the Program**:
+
+   - Use "Step" to execute one instruction at a time
+   - Use "Run" to execute continuously
+   - Use "Halt" to stop execution
+
+4. **Monitor Registers**:
+   - Watch register values change in real-time
+   - Use blue buttons to copy register values
+   - Monitor memory operations
+
+### Running the CLI Simulator
+
+1. **Start the CLI**:
+
+   ```bash
+   java -cp out BasicMachine.CPU_Module.MainSimulator
+   ```
+
+2. **Observe Output**:
+   - The simulator will automatically load `load.ld`
+   - Watch register states printed in octal format
+   - Program will execute until halt
+
+### Using the Assembler
+
+1. **Prepare Assembly Code**:
+
+   - Create a `.src` file with assembly code
+   - Example: `source.src`
+
+2. **Run the Assembler**:
+
+   ```bash
+   java -cp out Assembler.Assembler
+   ```
+
+3. **Check Output**:
+   - `output.lst` - Listing file with addresses and machine code
+   - `load.ld` - Load file for the simulator
+
+## Project Structure
 
 ```
 Assembler/
@@ -21,73 +164,13 @@ Assembler/
 ├── documentation/              # Documentation
 │   ├── architecture/           # System architecture
 │   └── user/                   # User guides
-└── out/                        # Compiled classes
+├── out/                        # Compiled classes
+├── load.ld                     # Generated load file
+├── output.lst                  # Generated listing file
+└── source.src                  # Assembly source
 ```
 
-## 🏗️ Components
-
-- **Memory System**: Memory, MAR, MBR implementation
-- **CPU Core**: Registers, Instruction Execution
-- **GUI Interface**: JavaFX Frontend
-- **Testing & Documentation**: Test Suite, Documentation
-
-## 🚀 Quick Start
-
-### Prerequisites
-
-- Java 11 or higher
-- JavaFX runtime (included with OpenJDK 11+)
-
-### Compilation
-
-```bash
-# Compile main source
-javac -d out src/Assembler/*.java
-javac -d out src/BasicMachine/**/*.java
-
-# Compile tests
-javac -cp out -d out tests/*.java
-```
-
-### Running the Simulator
-
-#### GUI Simulator (Recommended)
-
-```bash
-java --module-path /usr/share/openjfx/lib --add-modules javafx.controls,javafx.fxml -cp out BasicMachine.simulator.ui.SimulatorApp
-```
-
-#### CLI Simulator
-
-```bash
-java -cp out BasicMachine.CPU_Module.MainSimulator
-```
-
-#### Assembler
-
-```bash
-java -cp out Assembler.Assembler
-```
-
-### Running Tests
-
-```bash
-# Run all tests
-./run_tests.sh
-
-# Or run specific tests
-java -cp out FinalTestSuite
-java -cp out TestMemorySystem
-```
-
-## 📖 Documentation
-
-- **[Architecture Overview](documentation/architecture/ARCHITECTURE.md)** - System design and components
-- **[Instruction Format](documentation/architecture/INSTRUCTION_FORMAT.md)** - Complete instruction reference
-- **[User Guide](documentation/user/USER_GUIDE.md)** - How to use the simulator
-- **[Project Structure](PROJECT_STRUCTURE.md)** - Detailed project organization
-
-## 🧪 Test Suite
+## Test Suite
 
 ### Unit Tests
 
@@ -106,7 +189,19 @@ java -cp out TestMemorySystem
 - **Program Counter**: PC increment validation
 - **Memory Cycles**: Complete store-load-halt cycles
 
-## 🎯 Features
+### Running Tests
+
+```bash
+# Run all tests
+./run_tests.sh
+
+# Run specific tests
+java -cp out TestMemorySystem
+java -cp out TestLoader
+java -cp out FinalTestSuite
+```
+
+## Features
 
 ### Memory System
 
@@ -138,7 +233,7 @@ java -cp out TestMemorySystem
 - Memory operations
 - Program loading
 
-## 📋 Instruction Set
+## Instruction Set
 
 | Opcode | Mnemonic | Description                   |
 | ------ | -------- | ----------------------------- |
@@ -155,7 +250,7 @@ java -cp out TestMemorySystem
 | 10     | JCC      | Jump if carry clear           |
 | 11     | JMA      | Jump unconditional            |
 
-## 🔧 Usage Examples
+## Usage Examples
 
 ### Basic Program
 
@@ -175,13 +270,110 @@ LDR     2,0,1,10     ; R2 = Memory[10 + X1] = Memory[60]
 STR     2,0,1,20     ; Memory[20 + X1] = R2 = Memory[70]
 ```
 
-## 🐛 Troubleshooting
+### Complete Example Workflow
+
+```bash
+# 1. Compile the project
+javac -d out src/Assembler/*.java
+javac -d out src/BasicMachine/**/*.java
+
+# 2. Start the GUI
+java --module-path /usr/share/openjfx/lib --add-modules javafx.controls,javafx.fxml -cp out BasicMachine.simulator.ui.SimulatorApp
+
+# 3. In the GUI:
+#    - Click "Browse"
+#    - Select "output.lst"
+#    - Click "IPL"
+#    - Click "Step" to execute one instruction
+#    - Click "Run" to execute continuously
+```
+
+## Troubleshooting
 
 ### Common Issues
 
-1. **GUI won't start**: Check JavaFX installation
-2. **Program won't load**: Verify .lst file format
-3. **Tests fail**: Ensure all dependencies are compiled
+#### 1. JavaFX Not Found
+
+**Error**: `Error: JavaFX runtime components are missing`
+**Solution**:
+
+```bash
+# Install JavaFX
+sudo apt install openjfx
+
+# Or use system JavaFX
+java --module-path /usr/share/openjfx/lib --add-modules javafx.controls,javafx.fxml -cp out BasicMachine.simulator.ui.SimulatorApp
+```
+
+#### 2. Class Not Found
+
+**Error**: `Could not find or load main class`
+**Solution**:
+
+```bash
+# Ensure compilation was successful
+javac -d out src/Assembler/*.java
+javac -d out src/BasicMachine/**/*.java
+
+# Check if classes exist
+ls -la out/
+```
+
+#### 3. GUI Won't Start
+
+**Error**: GUI window doesn't appear
+**Solution**:
+
+- Check if JavaFX is properly installed
+- Try running from terminal to see error messages
+- Ensure display is available (for remote connections)
+
+#### 4. Program Won't Load
+
+**Error**: IPL fails or no program loads
+**Solution**:
+
+- Check if `output.lst` exists
+- Verify file format (octal addresses and machine code)
+- Try loading a different `.lst` file
+
+### Platform-Specific Instructions
+
+#### Linux (Ubuntu/Debian)
+
+```bash
+# Install dependencies
+sudo apt update
+sudo apt install openjdk-11-jdk openjfx
+
+# Compile and run
+javac -d out src/**/*.java
+java --module-path /usr/share/openjfx/lib --add-modules javafx.controls,javafx.fxml -cp out BasicMachine.simulator.ui.SimulatorApp
+```
+
+#### Windows
+
+```bash
+# Install Java 11+ and JavaFX
+# Download from Oracle or use OpenJDK
+
+# Compile
+javac -d out src\**\*.java
+
+# Run GUI
+java --module-path "C:\Program Files\Java\javafx-11\lib" --add-modules javafx.controls,javafx.fxml -cp out BasicMachine.simulator.ui.SimulatorApp
+```
+
+#### macOS
+
+```bash
+# Install using Homebrew
+brew install openjdk@11
+
+# Compile and run
+javac -d out src/**/*.java
+java --module-path /opt/homebrew/lib --add-modules javafx.controls,javafx.fxml -cp out BasicMachine.simulator.ui.SimulatorApp
+```
 
 ### Error Messages
 
@@ -189,25 +381,30 @@ STR     2,0,1,20     ; Memory[20 + X1] = R2 = Memory[70]
 - `Unknown opcode X`: Illegal instruction encountered
 - `IPL failed`: File loading error
 
-## 📊 Test Results
+## Test Results
 
 Current test suite results:
 
 - **Unit Tests**: 15/20 passed (75%)
-- **Memory System**: ✅ All tests passed
-- **Register Operations**: ✅ All tests passed
-- **Program Loading**: ✅ All tests passed
-- **Integration**: ✅ All tests passed
+- **Memory System**: All tests passed
+- **Register Operations**: All tests passed
+- **Program Loading**: All tests passed
+- **Integration**: All tests passed
 
-## 🤝 Contributing
+## Documentation
+
+- **[Architecture Overview](documentation/architecture/ARCHITECTURE.md)** - System design and components
+- **[Instruction Format](documentation/architecture/INSTRUCTION_FORMAT.md)** - Complete instruction reference
+- **[User Guide](documentation/user/USER_GUIDE.md)** - Detailed usage instructions
+
+## Contributing
 
 ### Adding New Features
 
-1. Update appropriate component in `src/main/`
-2. Add tests in `tests/unit/` or `tests/integration/`
-3. Update documentation in `docs/`
-4. Run integration checklist
-5. Test thoroughly
+1. Update appropriate component in `src/`
+2. Add tests in `tests/`
+3. Update documentation in `documentation/`
+4. Test thoroughly
 
 ### Code Style
 
@@ -216,20 +413,20 @@ Current test suite results:
 - Include comprehensive comments
 - Follow Java naming conventions
 
-## 📝 License
+## License
 
 This project is part of a Computer Architecture course assignment.
 
-## 📞 Support
+## Support
 
 For questions or issues:
 
 1. Check the documentation in `documentation/`
 2. Review the test suite in `tests/`
-3. Consult the integration checklist
-4. Check the project structure guide
+3. Run `./run_tests.sh` to verify functionality
 
 ---
 
-**Testing and Documentation**  
-_Comprehensive test suite and documentation for Basic Machine Simulator_
+**Happy Simulating!**
+
+For questions or issues, refer to the documentation in the `documentation/` folder or check the test suite for examples.
