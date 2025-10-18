@@ -1,5 +1,5 @@
 // Simulator/core/CPU.java
-package Simulator.core;
+package BasicMachine.simulator.core;
 
 public class CPU {
 

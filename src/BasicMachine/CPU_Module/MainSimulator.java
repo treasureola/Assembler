@@ -1,7 +1,7 @@
 package BasicMachine.CPU_Module;
 
 import BasicMachine.Memory_Module.Memory;
-import Assembler.Assembler;
+// import Assembler.Assembler;
 
 /**
 Current problems
@@ -14,7 +14,7 @@ public class MainSimulator {
         try {
             String sourceFile = "src/Assembler/source.src";
             System.out.println("Running assembler for " + sourceFile + " ...");
-            Assembler.assemble(sourceFile);
+            // Assembler.assemble(sourceFile); // Skip for now, use existing load.ld
             System.out.println("\nAssembler finished. Loading into BasicMachine.simulator...\n");
 
             Memory mem = new Memory();

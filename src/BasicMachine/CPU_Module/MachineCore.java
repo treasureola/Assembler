@@ -8,7 +8,7 @@ import BasicMachine.Memory_Module.Memory;
  * Implements the CPU execution cycle for the Basic Machine.
  *
  * Integration:
- *  - Reads/writes through Memory_Module (Person A).
+ *  - Reads/writes through Memory_Module.
  *  - Provides public methods for Testing_Module and UI_Module.
  */
 public class MachineCore {
