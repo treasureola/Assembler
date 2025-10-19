@@ -410,4 +410,37 @@ public class Assembler {
         }
     }
 
+    /**
+     * Public method that assembles a source file into load.ld and output.lst.
+     * This allows the BasicMachine.simulator (Part 1) to call the assembler directly.
+     */
+    public static void assemble(String sourceFile) throws IOException {
+        File file = new File(sourceFile);
+        if (!file.exists()) {
+            System.err.println("Error: " + sourceFile + " not found in current directory.");
+            return;
+        }
+
+        System.out.println("Assembler starting for file: " + sourceFile);
+
+        List<String> program = new ArrayList<>();
+
+        // Read the source file line by line
+        try (BufferedReader br = new BufferedReader(new FileReader(file))) {
+            String line;
+            while ((line = br.readLine()) != null) {
+                program.add(line);
+            }
+        }
+
+        // Run two-pass assembly process
+        pass1(program);
+        pass2(program);
+        generateListing("output.lst");
+        generateLoadFile("load.ld");
+
+        System.out.println("Assembler completed. Output files: output.lst, load.ld");
+    }
+
+
 }

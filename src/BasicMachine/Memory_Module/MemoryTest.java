@@ -1,4 +1,4 @@
-package MemoryModule;   
+package BasicMachine.Memory_Module;
 
 public class MemoryTest {
     public static void main(String[] args) {

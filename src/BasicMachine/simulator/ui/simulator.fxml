@@ -2,9 +2,12 @@
 <?import javafx.geometry.*?>
 <?import javafx.scene.control.*?>
 <?import javafx.scene.layout.*?>
-<BorderPane xmlns="http://javafx.com/javafx" xmlns:fx="http://javafx.com/fxml"
-            fx:controller="Simulator.ui.SimulatorController" prefWidth="1000" prefHeight="610">
-    <center>
+<BorderPane xmlns="http://javafx.com/javafx"
+            xmlns:fx="http://javafx.com/fxml"
+            fx:controller="BasicMachine.simulator.ui.SimulatorController"
+            prefWidth="1000" prefHeight="610">
+
+<center>
         <GridPane hgap="12" vgap="10">
             <padding>
                 <Insets top="15.0" right="15.0" bottom="15.0" left="15.0"/>

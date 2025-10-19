@@ -2,122 +2,162 @@ package BasicMachine.CPU_Module;
 
 import BasicMachine.Memory_Module.Memory;
 
-/**
- * MachineCore.java
- * -----------------
- * Implements the CPU execution cycle for the Basic Machine.
- *
- * Integration:
- *  - Reads/writes through Memory_Module (Person A).
- *  - Provides public methods for Testing_Module and UI_Module.
- */
 public class MachineCore {
     private final Memory memory;
     private final Registers regs;
     private boolean halted = false;
 
-    public MachineCore(Memory mem, Registers regs) {
-        this.memory = mem;
+    public MachineCore(Memory memory, Registers regs) {
+        this.memory = memory;
         this.regs = regs;
     }
 
-    /** Run continuously until HLT. */
-    public void run() {
-        while (!halted) runOneCycle();
+    // ===============================================================
+    // SYSTEM CONTROL
+    // ===============================================================
+    public void reset() {
+        halted = false;
+        memory.reset();
+        regs.reset();
     }
 
-    /** Execute one fetch–decode–execute cycle. */
-    public void runOneCycle() {
-        fetch();
-        decodeAndExecute();
+    public boolean isHalted() {
+        return halted;
     }
 
-    /** FETCH PHASE:
-     *  MAR ← PC
-     *  MBR ← Mem[MAR]
-     *  IR  ← MBR
-     *  PC  ← PC + 1
-     */
-    private void fetch() {
-        int address = regs.PC.get();
-        regs.MAR.set(address);
-        regs.MBR.set(memory.readWord(address));
-        regs.IR.set(regs.MBR.get());
-        regs.PC.set(address + 1);
+    public Registers getRegisters() {
+        return regs;
     }
 
-    /** Decode IR fields and execute corresponding instruction. */
-    private void decodeAndExecute() {
-        int instr = regs.IR.get();
+    public Memory getMemory() {
+        return memory;
+    }
 
-        // bit-field extraction
-        int opcode  = (instr >> 10) & 0x3F;
-        int r       = (instr >> 8) & 0x03;
-        int ix      = (instr >> 6) & 0x03;
-        int i       = (instr >> 5) & 0x01;
-        int address =  instr & 0x1F;
+    // ===============================================================
+    // FETCH-DECODE-EXECUTE CYCLE
+    // ===============================================================
+    public void step() {
+        if (halted) return;
 
-        switch (opcode) {
-            case 1 -> executeLDR(r, ix, i, address);
-            case 2 -> executeSTR(r, ix, i, address);
-            case 33 -> executeHLT();
-            default -> {
-                System.out.printf("Unknown opcode %d, halting.%n", opcode);
-                halted = true;
-            }
+        int pc = regs.getPC();
+        regs.setMAR(pc);
+        int word = memory.readWord(pc);
+        regs.setMBR(word);
+        regs.setIR(word);
+        regs.setPC(pc + 1); // move to next instruction
+
+        int opcode = (word >> 10) & 0x3F; // 6-bit opcode field
+
+        if (opcode == 0) {
+            halted = true;
+            System.out.printf("[HLT] Halting at PC=%06o%n", pc);
+            return;
         }
 
-        printState();  // debug output for Testing/UI
+        execute(word);
     }
 
-    /** Compute effective address from IX and I bits. */
-    private int calcEA(int ix, int i, int addr) {
+    public void run() {
+        while (!halted) {
+            step();
+        }
+    }
+
+    // ===============================================================
+    // EXECUTION UNIT
+    // ===============================================================
+    private void execute(int instr) {
+        int opcode = (instr >> 10) & 0x3F;  // top 6 bits (bits 15–10)
+        int r = (instr >> 8) & 0x03;        // bits 9–8
+        int ix = (instr >> 6) & 0x03;       // bits 7–6
+        int i = (instr >> 5) & 0x01;        // bit 5 (indirect)
+        int addr = instr & 0x1F;            // bits 4–0 (5-bit address)
+
+        int ea = computeEA(ix, i, addr);
+
+        switch (opcode) {
+
+            // ---------------------------
+            // Load / Store
+            // ---------------------------
+            case 1: // LDR
+                loadRegister(r, ea);
+                break;
+
+            case 2: // STR
+                storeRegister(r, ea);
+                break;
+
+            case 3: // LDA
+                regs.setGPR(r, ea);
+                System.out.printf("[LDA] R%d ← EA=%06o%n", r, ea);
+                break;
+
+            // ---------------------------
+            // Index Register
+            // ---------------------------
+            case 41: // LDX (octal 101001)
+                loadIndex(ix, ea);
+                break;
+
+            case 42: // STX
+                storeIndex(ix, ea);
+                break;
+
+            // ---------------------------
+            // Branching
+            // ---------------------------
+            case 20: // JZ (octal 020)
+                if (regs.getGPR(r) == 0) {
+                    regs.setPC(ea);
+                    System.out.printf("[JZ] R%d==0 → PC←%06o%n", r, ea);
+                }
+                break;
+
+            // ---------------------------
+            // HALT
+            // ---------------------------
+            case 0: // HLT
+                halted = true;
+                System.out.println("[HLT] Program halted.");
+                break;
+
+            default:
+                System.out.printf("[WARN] Unknown opcode %02o at PC=%06o%n", opcode, regs.getPC());
+        }
+    }
+
+    // ===============================================================
+    // HELPER METHODS
+    // ===============================================================
+    private int computeEA(int ix, int i, int addr) {
         int ea = addr;
-        if (ix > 0) ea += regs.IXR[ix - 1].get(); // indexed
-        if (i == 1) ea = memory.readWord(ea);         // indirect
-        return ea;
+        if (ix > 0) ea += regs.getIX(ix);
+        if (i == 1) ea = memory.readWord(ea);
+        return ea & 0x7FF; // limit to 11-bit address space
     }
 
-    /** LDR r,ix,i,addr — Load register from memory. */
-    private void executeLDR(int r, int ix, int i, int addr) {
-        int ea = calcEA(ix, i, addr);
+    private void loadRegister(int r, int ea) {
         int val = memory.readWord(ea);
-        regs.GPR[r].set(val);
+        regs.setGPR(r, val);
+        System.out.printf("[LDR] R%d ← MEM[%06o] = %06o%n", r, ea, val);
     }
 
-    /** STR r,ix,i,addr — Store register into memory. */
-    private void executeSTR(int r, int ix, int i, int addr) {
-        int ea = calcEA(ix, i, addr);
-        memory.writeWord(ea, regs.GPR[r].get());
+    private void storeRegister(int r, int ea) {
+        int val = regs.getGPR(r);
+        memory.writeWord(ea, val);
+        System.out.printf("[STR] MEM[%06o] ← R%d = %06o%n", ea, r, val);
     }
 
-    private void executeHLT() {
-        halted = true;
-        System.out.println("Program halted.");
-        printState(); // show final octal state
+    private void loadIndex(int ix, int ea) {
+        int val = memory.readWord(ea);
+        regs.setIX(ix, val);
+        System.out.printf("[LDX] X%d ← MEM[%06o] = %06o%n", ix, ea, val);
     }
 
-
-    /** Print CPU register state in octal format for debugging/UI. */
-    public void printState() {
-        System.out.printf(
-                "PC=%04o  IR=%06o  MAR=%04o  MBR=%06o%n",
-                regs.PC.get(), regs.IR.get(),
-                regs.MAR.get(), regs.MBR.get()
-        );
-
-        System.out.printf(
-                "R0=%06o  R1=%06o  R2=%06o  R3=%06o%n",
-                regs.GPR[0].get(), regs.GPR[1].get(),
-                regs.GPR[2].get(), regs.GPR[3].get()
-        );
-
-        System.out.printf(
-                "X1=%06o  X2=%06o  X3=%06o%n%n",
-                regs.IXR[0].get(), regs.IXR[1].get(), regs.IXR[2].get()
-        );
+    private void storeIndex(int ix, int ea) {
+        int val = regs.getIX(ix);
+        memory.writeWord(ea, val);
+        System.out.printf("[STX] MEM[%06o] ← X%d = %06o%n", ea, ix, val);
     }
-
-
-    public boolean isHalted() { return halted; }
 }

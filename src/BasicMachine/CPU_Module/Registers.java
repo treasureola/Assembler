@@ -1,52 +1,42 @@
 package BasicMachine.CPU_Module;
 
-/**
- * Registers.java
- * ----------------
- * Implements all CPU registers for the Basic Machine.
- *
- * Integration:
- *  - Used by MachineCore.java to fetch, store, and modify values.
- *  - Shared with UI_Module (for visual display of register values).
- *  - MAR and MBR connect directly with Memory_Module.
- */
-class Register {  // internal helper, not public
-    private int value;
-    private final int size;
-
-    public Register(int size) {
-        this.size = size;
-        this.value = 0;
-    }
-
-    /** Set register value (masked to register width). */
-    public void set(int val) {
-        int mask = (1 << size) - 1;
-        this.value = val & mask;
-    }
-
-    /** Get current value. */
-    public int get() { return value; }
-
-    /** Reset to zero. */
-    public void clear() { value = 0; }
-}
-
 public class Registers {
-    // Special registers
-    public Register PC  = new Register(12);  // Program Counter
-    public Register MAR = new Register(12);  // Memory Address Register
-    public Register MBR = new Register(16);  // Memory Buffer Register
-    public Register IR  = new Register(16);  // Instruction Register
+    private int[] GPR = new int[4];   // R0–R3
+    private int[] IXR = new int[4];   // X0 unused; X1–X3 used
+    private int PC, MAR, MBR, IR, MFR, CC;
 
-    // General Purpose Registers (R0–R3)
-    public Register[] GPR = {
-            new Register(16), new Register(16),
-            new Register(16), new Register(16)
-    };
+    public void reset() {
+        for (int i = 0; i < 4; i++) {
+            GPR[i] = 0;
+            IXR[i] = 0;
+        }
+        PC = MAR = MBR = IR = MFR = CC = 0;
+    }
 
-    // Index Registers (X1–X3)
-    public Register[] IXR = {
-            new Register(16), new Register(16), new Register(16)
-    };
+    // ================= GPRs (R0–R3) =================
+    public int getGPR(int r) { return GPR[r]; }
+    public void setGPR(int r, int val) { GPR[r] = val & 0xFFFF; }
+
+    // ================= IXRs (X1–X3) =================
+    public int getIX(int x) { return IXR[x]; }
+    public void setIX(int x, int val) { IXR[x] = val & 0xFFFF; }
+
+    // ================= Control Registers =================
+    public int getPC() { return PC; }
+    public void setPC(int val) { PC = val & 0x7FF; }
+
+    public int getMAR() { return MAR; }
+    public void setMAR(int val) { MAR = val & 0x7FF; }
+
+    public int getMBR() { return MBR; }
+    public void setMBR(int val) { MBR = val & 0xFFFF; }
+
+    public int getIR() { return IR; }
+    public void setIR(int val) { IR = val & 0xFFFF; }
+
+    public int getMFR() { return MFR; }
+    public void setMFR(int val) { MFR = val & 0xFFFF; }
+
+    public int getCC() { return CC; }
+    public void setCC(int val) { CC = val & 0xFFFF; }
 }
