@@ -1,42 +1,33 @@
-package BasicMachine.simulator.core;
-
-import BasicMachine.CPU_Module.MachineCore;
-import BasicMachine.CPU_Module.Registers;
-import BasicMachine.Memory_Module.Memory;
+// Simulator/core/CPU.java
+package Simulator.core;
 
 public class CPU {
-    private final MachineCore core;
 
-    public CPU() {
-        Memory memory = new Memory();
-        Registers regs = new Registers();
-        this.core = new MachineCore(memory, regs);
-    }
+    private short r0, r1, r2, r3;
+    private short x1, x2, x3;
 
-    // ================= BASIC CONTROL =================
-    public void step() { core.step(); }
-    public void run() { core.run(); }
-    public void reset() { core.reset(); }
-    public boolean isHalted() { return core.isHalted(); }
 
-    // ================= ACCESSORS =================
-    public Memory getMemory() { return core.getMemory(); }
-    public Registers getRegisters() { return core.getRegisters(); }
+    private short pc, mar, mbr, ir, mfr;
+    private short cc;    // 4 bits: O/U/Z/E (示意)
+    private final int[] memory = new int[2048];
 
-    // ================= REGISTER SHORTCUTS =================
-    public short getR0() { return (short) core.getRegisters().getGPR(0); }
-    public short getR1() { return (short) core.getRegisters().getGPR(1); }
-    public short getR2() { return (short) core.getRegisters().getGPR(2); }
-    public short getR3() { return (short) core.getRegisters().getGPR(3); }
+    public int[] memory() { return memory; }
 
-    public short getX1() { return (short) core.getRegisters().getIX(1); }
-    public short getX2() { return (short) core.getRegisters().getIX(2); }
-    public short getX3() { return (short) core.getRegisters().getIX(3); }
+    // getters/setters
+    public short getR0() { return r0; } public void setR0(short v){ r0=v; }
+    public short getR1() { return r1; } public void setR1(short v){ r1=v; }
+    public short getR2() { return r2; } public void setR2(short v){ r2=v; }
+    public short getR3() { return r3; } public void setR3(short v){ r3=v; }
+    public short getX1() { return x1; } public void setX1(short v){ x1=v; }
+    public short getX2() { return x2; } public void setX2(short v){ x2=v; }
+    public short getX3() { return x3; } public void setX3(short v){ x3=v; }
 
-    public short getPC() { return (short) core.getRegisters().getPC(); }
-    public short getMAR() { return (short) core.getRegisters().getMAR(); }
-    public short getMBR() { return (short) core.getRegisters().getMBR(); }
-    public short getIR() { return (short) core.getRegisters().getIR(); }
-    public short getCC() { return (short) core.getRegisters().getCC(); }
-    public short getMFR() { return (short) core.getRegisters().getMFR(); }
+    public short getPC() { return pc; } public void setPC(short v){ pc=v; }
+    public short getMAR(){ return mar;} public void setMAR(short v){mar=v;}
+    public short getMBR(){ return mbr;} public void setMBR(short v){mbr=v;}
+    public short getIR() { return ir; } public void setIR(short v){ ir=v; }
+    public short getMFR(){ return mfr;} public void setMFR(short v){mfr=v;}
+    public short getCC() { return cc; }  public void setCC(short v){ cc=(short)(v&0xF); }
+
+
 }
