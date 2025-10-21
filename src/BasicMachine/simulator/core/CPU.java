@@ -1,33 +1,72 @@
-// Simulator/core/CPU.java
-package Simulator.core;
+package BasicMachine.simulator.core;
 
+/* ==============================================================
+ * CPU.java
+ * --------------------------------------------------------------
+ * Purpose:
+ *   Provides a minimal CPU container class for backward compatibility
+ *   with early versions of the simulator UI or test scripts.
+ *
+ * Background:
+ *   In the original Part 0 implementation, the CPU was modeled as a
+ *   single class containing both registers and memory.
+ *
+ *   In the current modular design (Part 1 and beyond), CPU behavior
+ *   has been refactored into:
+ *      - MachineCore   → fetch–decode–execute logic
+ *      - Registers     → all general and control registers
+ *      - Memory        → 2048 × 16-bit single-port memory
+ *
+ *   However, some parts of the simulator UI (FXML or controllers)
+ *   may still expect a "CPU" class with a public `memory` field.
+ *   This class preserves compatibility for those cases.
+ * ==============================================================
+ */
 public class CPU {
 
-    private short r0, r1, r2, r3;
-    private short x1, x2, x3;
-
-
-    private short pc, mar, mbr, ir, mfr;
-    private short cc;    // 4 bits: O/U/Z/E (示意)
+    /* --------------------------------------------------------------
+     * Field: memory
+     * --------------------------------------------------------------
+     * A simple 2K-word memory array (2048 × 16 bits).
+     * Exists only for backward compatibility with UI components
+     * that reference `CPU.memory`.
+     *
+     * Note:
+     *   This array is *not* the authoritative memory for the system.
+     *   The active memory resides in BasicMachine.Memory_Module.Memory.
+     */
     private final int[] memory = new int[2048];
 
-    public int[] memory() { return memory; }
+    /* ==============================================================
+     * memory()
+     * --------------------------------------------------------------
+     * Returns the reference to the internal memory array.
+     *
+     * Purpose:
+     *   - Allows older UI code to access or display memory contents.
+     *   - Provides a placeholder to prevent null reference errors
+     *     if the legacy code still expects `CPU.memory()`.
+     *
+     * Example:
+     *   int[] mem = cpu.memory();
+     *   mem[10] = 012345;  // legacy compatibility only
+     * ==============================================================
+     */
+    public int[] memory() {
+        return memory;
+    }
 
-    // getters/setters
-    public short getR0() { return r0; } public void setR0(short v){ r0=v; }
-    public short getR1() { return r1; } public void setR1(short v){ r1=v; }
-    public short getR2() { return r2; } public void setR2(short v){ r2=v; }
-    public short getR3() { return r3; } public void setR3(short v){ r3=v; }
-    public short getX1() { return x1; } public void setX1(short v){ x1=v; }
-    public short getX2() { return x2; } public void setX2(short v){ x2=v; }
-    public short getX3() { return x3; } public void setX3(short v){ x3=v; }
-
-    public short getPC() { return pc; } public void setPC(short v){ pc=v; }
-    public short getMAR(){ return mar;} public void setMAR(short v){mar=v;}
-    public short getMBR(){ return mbr;} public void setMBR(short v){mbr=v;}
-    public short getIR() { return ir; } public void setIR(short v){ ir=v; }
-    public short getMFR(){ return mfr;} public void setMFR(short v){mfr=v;}
-    public short getCC() { return cc; }  public void setCC(short v){ cc=(short)(v&0xF); }
-
-
+    /* ==============================================================
+     * Notes:
+     * --------------------------------------------------------------
+     * - This class intentionally performs no real computation.
+     * - The “authoritative” CPU behavior is implemented in:
+     *       → MachineCore  (execution logic)
+     *       → Registers    (data and control registers)
+     *       → Memory       (main memory model)
+     *
+     * - Keeping this class ensures the simulator remains compatible
+     *   with all previously linked UI controllers and testing scripts.
+     * ==============================================================
+     */
 }

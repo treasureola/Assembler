@@ -1,110 +1,71 @@
 #!/bin/bash
+# ==============================================================
+# run_tests.sh
+# --------------------------------------------------------------
+# Purpose:
+#   Automated test runner for the Basic Machine Simulator project.
+#   This script compiles the project’s core Java source files and
+#   all test files, then executes the consolidated TestRunner class.
+#
+# Description:
+#   - Compiles all Java source files under src/, excluding GUI (JavaFX) files.
+#   - Compiles all automated test classes under tests/.
+#   - Executes TestRunner.java, which runs the four major test cases:
+#       1. MemoryTest.java
+#       2. CPUInstructionTest.java
+#       3. IntegrationTest.java
+#       4. SimulatorRunTest.java
+#
+#   Designed for non-GUI environments (e.g., automated grading servers).
+#   This ensures correctness of assembler, loader, memory, and CPU modules
+#   without requiring JavaFX or manual input.
+#
+# Usage:
+#   ./run_tests.sh
+#
+# Output:
+#   Each test prints “[PASS]” or “[FAIL]” with details.
+#   A summary of total passed and failed tests is shown at the end.
+#
+# ==============================================================
+# Step 1 — Display header
+# --------------------------------------------------------------
+# Prints the project title and basic information.
+# ==============================================================
 
-# Basic Machine Simulator - Test Runner
-# Testing and Documentation
+echo "=== Basic Machine Simulator Automated Test Suite ==="
 
-echo "=== Basic Machine Simulator Test Suite ==="
-echo "Testing and Documentation"
-echo "=========================================="
-echo
+# ==============================================================
+# Step 2 — Compile core source files
+# --------------------------------------------------------------
+#  - Uses javac to recursively compile all Java files under src/
+#    except those in the UI directory (which depend on JavaFX).
+#  - Output compiled .class files into the “out/” directory.
+# ==============================================================
 
-# Colors for output
-RED='\033[0;31m'
-GREEN='\033[0;32m'
-YELLOW='\033[1;33m'
-NC='\033[0m' # No Color
+echo "Compiling core..."
+javac -d out $(find src -name "*.java" ! -path "src/BasicMachine/simulator/ui/*")
 
-# Function to print colored output
-print_status() {
-    if [ $1 -eq 0 ]; then
-        echo -e "${GREEN}PASS: $2${NC}"
-    else
-        echo -e "${RED}FAIL: $2${NC}"
-    fi
-}
+# ==============================================================
+# Step 3 — Compile test files
+# --------------------------------------------------------------
+#  - Compiles all test files located in the tests/ folder.
+#  - Adds both src/ and out/ to the classpath, so the tests
+#    can reference already compiled project classes.
+#  - The output .class files are placed in out/tests/.
+# ==============================================================
 
-# Function to run a test
-run_test() {
-    local test_name="$1"
-    local test_class="$2"
-    local description="$3"
-    
-    echo -e "${YELLOW}Running $test_name...${NC}"
-    echo "Description: $description"
-    echo "Command: java -cp out $test_class"
-    echo "----------------------------------------"
-    
-    java -cp out "$test_class" 2>&1
-    local exit_code=$?
-    
-    echo "----------------------------------------"
-    print_status $exit_code "$test_name completed"
-    echo
-}
+echo "Compiling tests..."
+javac -cp out:src -d out/tests $(find tests -name "*.java")
 
-# Check if out directory exists
-if [ ! -d "out" ]; then
-    echo -e "${RED}Error: out directory not found. Please compile the project first.${NC}"
-    echo "Run: javac -d out src/main/**/*.java"
-    exit 1
-fi
+# ==============================================================
+# Step 4 — Execute consolidated TestRunner
+# --------------------------------------------------------------
+#  - Runs the TestRunner class, which executes all test suites
+#    and prints a pass/fail summary.
+#  - Uses both the core (out/) and test (out/tests) directories
+#    as part of the classpath for dependency resolution.
+# ==============================================================
 
-# Compile test files
-echo -e "${YELLOW}Compiling test files...${NC}"
-javac -cp out -d out tests/*.java 2>/dev/null
-if [ $? -eq 0 ]; then
-    print_status 0 "Test compilation successful"
-else
-    print_status 1 "Test compilation failed"
-    exit 1
-fi
-echo
-
-# Run unit tests
-echo -e "${YELLOW}=== UNIT TESTS ===${NC}"
-echo
-
-run_test "Memory System Test" "TestMemorySystem" "Tests memory operations, MAR, MBR, and program loading"
-
-run_test "Program Loader Test" "TestLoader" "Tests program loading functionality"
-
-run_test "Final Test Suite" "FinalTestSuite" "Comprehensive test suite for all components"
-
-# Run integration tests if available
-if [ -f "tests/TestGUIMemoryIntegration.java" ]; then
-    echo -e "${YELLOW}=== INTEGRATION TESTS ===${NC}"
-    echo
-    
-    run_test "GUI Memory Integration Test" "TestGUIMemoryIntegration" "Tests GUI integration with memory system"
-    echo
-fi
-
-# Test program validation
-echo -e "${YELLOW}=== TEST PROGRAMS ===${NC}"
-echo
-
-if [ -d "tests" ]; then
-    echo "Test programs available:"
-    ls -la tests/*.src 2>/dev/null | while read line; do
-        echo "  - $line"
-    done
-    echo
-    echo "To use test programs:"
-    echo "1. Assemble: Use the assembler to convert .src to .lst files"
-    echo "2. Load: Load .lst files into the simulator"
-    echo "3. Execute: Run programs in the simulator"
-    echo
-fi
-
-# Summary
-echo -e "${YELLOW}=== TEST SUMMARY ===${NC}"
-echo "All tests have been executed."
-echo "Check the output above for detailed results."
-echo
-echo "For more information, see:"
-echo "- tests/README.md - Test documentation"
-echo "- documentation/architecture/ - System architecture"
-echo "- documentation/user/ - User guides"
-echo
-
-echo -e "${GREEN}Test execution complete!${NC}"
+echo "Running test suite..."
+java -cp out:out/tests TestRunner

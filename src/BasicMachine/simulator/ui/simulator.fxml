@@ -180,7 +180,7 @@
                                 <ColumnConstraints percentWidth="85"/>
                                 <ColumnConstraints percentWidth="15"/>
                             </columnConstraints>
-                            <TextField fx:id="programFileField" promptText="Program File (.lst)"/>
+                            <TextField fx:id="programFileField" promptText="Program File (.ld)"/>
                             <Button text="Browse..." onAction="#onBrowse" GridPane.columnIndex="1"/>
                         </GridPane>
 

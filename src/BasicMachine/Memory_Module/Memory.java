@@ -1,74 +1,159 @@
 package BasicMachine.Memory_Module;
 
+/* ==============================================================
+ * Memory.java
+ * --------------------------------------------------------------
+ * Purpose:
+ *   Implements the Basic Machine’s single-port main memory.
+ *   Provides read and write access for both the CPU (via MAR/MBR)
+ *   and the ProgramLoader (for loading .ld files).
+ *
+ * Architecture:
+ *   - 2048 words (each word = 16 bits)
+ *   - Address range: 0–2047 (11 bits)
+ *   - Single-port model → one operation per cycle (read OR write)
+ *
+ * Role in System:
+ *   - The CPU interacts with memory using MAR (address) and MBR (data).
+ *   - The ProgramLoader writes binary words into memory from the .ld file.
+ *   - The Simulator UI can display memory contents in octal format.
+ *
+ * Example Access:
+ *   MAR ← 0010
+ *   MBR ← 102110
+ *   M[MAR] ← MBR
+ *
+ * ==============================================================
+ */
 public class Memory {
-    // 2048 words of 16 bits 
-    private int[] data = new int[2048];
-    
-    public Memory() {
-        reset();  // this clears up  memory on creation
-    }
 
-    /**
-     * Clear all memory contents to zero on reset.
+    /* --------------------------------------------------------------
+     * CONSTANTS AND FIELDS
+     * --------------------------------------------------------------
+     * SIZE: total memory capacity (2K words = 2048 × 16-bit)
+     * mem : integer array representing each 16-bit word
+     * programStartAddr: keeps track of the first instruction address
+     *                   after a program is loaded (used for IPL/startup)
+     */
+    private static final int SIZE = 2048;
+    private final int[] mem = new int[SIZE];
+    private int programStartAddr = 0;
+
+    /* ==============================================================
+     * reset()
+     * --------------------------------------------------------------
+     * Resets all memory cells to zero.
+     *
+     * Called by:
+     *   - The simulator “Reset” button (before loading a new program)
+     *   - System initialization (to simulate power-on clear)
+     *
+     * Behavior:
+     *   - Loops through all 2048 words and sets them to 0.
+     *   - Clears the recorded program start address.
+     * ==============================================================
      */
     public void reset() {
-        for (int i = 0; i < data.length; i++) {
-            data[i] = 0;
-        }
+        for (int i = 0; i < SIZE; i++) mem[i] = 0;
+        programStartAddr = 0;
     }
 
-    /**
-     * Read a word from the given address, then places the result into the MBR.
-     * address memory address (0–2047)
-     * this then returns the 16-bit value at that address, 0 if invalid
-     */
-    public int readWord(int address) {
-        if (address < 0 || address >= data.length) {
-            // Handles invalid addresses
-            System.err.println("Memory read error: invalid address " + address);
-            return 0;
-        }
-        return data[address];
-    }
-
-    /**
-     * Write a word to the given address. Uses the value from the MBR.
-     * address memory address (0–2047)
-     * value 16-bit value to write
+    /* ==============================================================
+     * writeWord()
+     * --------------------------------------------------------------
+     * Writes a single 16-bit word into memory.
+     *
+     * Parameters:
+     *   address — memory address (0–2047)
+     *   value   — data word to store (only lower 16 bits used)
+     *
+     * Called by:
+     *   - CPU (during STR or store instructions)
+     *   - ProgramLoader (when loading .ld program files)
+     *
+     * Throws:
+     *   IllegalArgumentException if the address is outside 0–2047.
+     * ==============================================================
      */
     public void writeWord(int address, int value) {
-        if (address < 0 || address >= data.length) {
-            // Handle invalid addresses 
-            System.err.println("Memory write error: invalid address " + address);
-            return;
-        }
-        data[address] = value & 0xFFFF;  // mask to 16 bits
+        if (address < 0 || address >= SIZE)
+            throw new IllegalArgumentException("Invalid memory address: " + address);
+        mem[address] = value & 0xFFFF;  // Mask to 16 bits
     }
-    
-    /**
-     * Load program from load.ld file
+
+    /* ==============================================================
+     * readWord()
+     * --------------------------------------------------------------
+     * Reads a single 16-bit word from memory.
+     *
+     * Parameters:
+     *   address — memory address (0–2047)
+     *
+     * Returns:
+     *   The 16-bit word stored at that address.
+     *
+     * Called by:
+     *   - CPU (during LDR, LDA, or instruction fetch)
+     *   - ProgramLoader (to verify memory contents if needed)
+     *
+     * Throws:
+     *   IllegalArgumentException if address is out of range.
+     * ==============================================================
      */
-    public void load(String filename) throws Exception {
-        java.io.BufferedReader br = new java.io.BufferedReader(new java.io.FileReader(filename));
-        String line;
-        while ((line = br.readLine()) != null) {
-            String[] parts = line.trim().split("\\s+");
-            if (parts.length >= 2) {
-                int addr = Integer.parseInt(parts[0], 8); // octal
-                int value = Integer.parseInt(parts[1], 8); // octal
-                writeWord(addr, value);
-            }
-        }
-        br.close();
+    public int readWord(int address) {
+        if (address < 0 || address >= SIZE)
+            throw new IllegalArgumentException("Invalid memory address: " + address);
+        return mem[address] & 0xFFFF;  // Return 16-bit masked value
     }
-    
-    /**
-     * Get program start address (first non-zero instruction)
+
+    /* ==============================================================
+     * size()
+     * --------------------------------------------------------------
+     * Returns total number of addressable memory words.
+     *
+     * Useful for:
+     *   - ProgramLoader bounds checking
+     *   - Simulator UI display and validation
+     * ==============================================================
+     */
+    public int size() {
+        return SIZE;
+    }
+
+    /* ==============================================================
+     * setProgramStartAddress()
+     * --------------------------------------------------------------
+     * Records the starting address of the loaded program.
+     * This is typically the first executable instruction in memory.
+     *
+     * Called by:
+     *   - ProgramLoader after loading a .ld file
+     *   - Allows CPU to set PC ← programStartAddr during IPL
+     * ==============================================================
+     */
+    public void setProgramStartAddress(int addr) {
+        this.programStartAddr = addr & 0x7FF;  // Mask to 11 bits
+    }
+
+    /* ==============================================================
+     * getProgramStartAddress()
+     * --------------------------------------------------------------
+     * Returns the stored program start address.
+     * Used by the CPU or simulator during initial program load (IPL).
+     * ==============================================================
      */
     public int getProgramStartAddress() {
-        for (int i = 0; i < data.length; i++) {
-            if (data[i] != 0) return i;
-        }
-        return 0;
+        return programStartAddr;
     }
+
+    /* ==============================================================
+     * Notes:
+     * --------------------------------------------------------------
+     * - Memory is modeled as a single integer array for simplicity.
+     * - This module abstracts physical memory timing but preserves
+     *   word-level accuracy and bus width.
+     * - Together with MAR and MBR, this forms the full
+     *   CPU–Memory interface.
+     * ==============================================================
+     */
 }

@@ -1,0 +1,5 @@
+Manifest-Version: 1.0
+Main-Class: BasicMachine.simulator.ui.SimulatorRunner
+Class-Path: .
+Created-By: 24.0.2 (Oracle Corporation)
+
