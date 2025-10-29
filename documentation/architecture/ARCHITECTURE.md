@@ -11,6 +11,18 @@ The Basic Machine Simulator implements a simplified 16-bit computer architecture
 - **Access**: Single-port memory (one operation per clock cycle)
 - **Initialization**: All memory locations reset to zero on startup
 
+#### Cache Memory (Phase II)
+
+- **Type**: Fully associative, unified cache
+- **Size**: 16 cache lines
+- **Line Size**: 1 word (16 bits)
+- **Replacement Policy**: FIFO (First-In, First-Out)
+- **Write Policy**: Write-through with write-allocate
+- **Location**: Between CPU and main memory
+- **Purpose**: Improve memory access performance through caching frequently used data
+
+For detailed cache design, see [CACHE_DESIGN.md](CACHE_DESIGN.md)
+
 ### CPU Registers
 
 #### General Purpose Registers (GPR)
@@ -92,10 +104,11 @@ The simulator operates on a single-phase clock:
 
 The memory system provides:
 
-- **Read Operation**: MAR → Memory → MBR
-- **Write Operation**: MAR + MBR → Memory
+- **Read Operation**: MAR → Cache → Memory → MBR (cache hit/miss handled transparently)
+- **Write Operation**: MAR + MBR → Cache → Memory (write-through policy)
 - **Error Handling**: Invalid addresses return 0 and log errors
-- **Reset**: All locations cleared to zero
+- **Reset**: All locations and cache cleared to zero
+- **Cache Control**: Enable/disable cache, view statistics, trace logging
 
 ### Error Handling
 

@@ -4,7 +4,7 @@ package BasicMachine.Memory_Module;
  * Memory.java
  * --------------------------------------------------------------
  * Purpose:
- *   Implements the Basic Machine’s single-port main memory.
+ *   Implements the Basic Machine's single-port main memory with cache.
  *   Provides read and write access for both the CPU (via MAR/MBR)
  *   and the ProgramLoader (for loading .ld files).
  *
@@ -12,9 +12,11 @@ package BasicMachine.Memory_Module;
  *   - 2048 words (each word = 16 bits)
  *   - Address range: 0–2047 (11 bits)
  *   - Single-port model → one operation per cycle (read OR write)
+ *   - Integrated with 16-line fully-associative cache (FIFO replacement)
  *
  * Role in System:
  *   - The CPU interacts with memory using MAR (address) and MBR (data).
+ *   - Cache sits between CPU and main memory for performance.
  *   - The ProgramLoader writes binary words into memory from the .ld file.
  *   - The Simulator UI can display memory contents in octal format.
  *
@@ -34,10 +36,25 @@ public class Memory {
      * mem : integer array representing each 16-bit word
      * programStartAddr: keeps track of the first instruction address
      *                   after a program is loaded (used for IPL/startup)
+     * cache: integrated cache for faster memory access
+     * cacheEnabled: flag to enable/disable cache (for testing)
      */
     private static final int SIZE = 2048;
     private final int[] mem = new int[SIZE];
     private int programStartAddr = 0;
+    private Cache cache;
+    private boolean cacheEnabled;
+
+    /* ==============================================================
+     * Constructor
+     * --------------------------------------------------------------
+     * Initializes memory with cache enabled by default.
+     * ==============================================================
+     */
+    public Memory() {
+        this.cache = new Cache();
+        this.cacheEnabled = true;
+    }
 
     /* ==============================================================
      * reset()
@@ -45,23 +62,27 @@ public class Memory {
      * Resets all memory cells to zero.
      *
      * Called by:
-     *   - The simulator “Reset” button (before loading a new program)
+     *   - The simulator "Reset" button (before loading a new program)
      *   - System initialization (to simulate power-on clear)
      *
      * Behavior:
      *   - Loops through all 2048 words and sets them to 0.
      *   - Clears the recorded program start address.
+     *   - Resets the cache if enabled.
      * ==============================================================
      */
     public void reset() {
         for (int i = 0; i < SIZE; i++) mem[i] = 0;
         programStartAddr = 0;
+        if (cacheEnabled && cache != null) {
+            cache.reset();
+        }
     }
 
     /* ==============================================================
      * writeWord()
      * --------------------------------------------------------------
-     * Writes a single 16-bit word into memory.
+     * Writes a single 16-bit word into memory through cache.
      *
      * Parameters:
      *   address — memory address (0–2047)
@@ -71,6 +92,10 @@ public class Memory {
      *   - CPU (during STR or store instructions)
      *   - ProgramLoader (when loading .ld program files)
      *
+     * Behavior:
+     *   - If cache is enabled, writes through cache (write-through policy)
+     *   - Otherwise, writes directly to memory
+     *
      * Throws:
      *   IllegalArgumentException if the address is outside 0–2047.
      * ==============================================================
@@ -78,13 +103,18 @@ public class Memory {
     public void writeWord(int address, int value) {
         if (address < 0 || address >= SIZE)
             throw new IllegalArgumentException("Invalid memory address: " + address);
-        mem[address] = value & 0xFFFF;  // Mask to 16 bits
+        
+        if (cacheEnabled && cache != null) {
+            cache.write(address, value, this);
+        } else {
+            mem[address] = value & 0xFFFF;  // Mask to 16 bits
+        }
     }
 
     /* ==============================================================
      * readWord()
      * --------------------------------------------------------------
-     * Reads a single 16-bit word from memory.
+     * Reads a single 16-bit word from memory through cache.
      *
      * Parameters:
      *   address — memory address (0–2047)
@@ -96,6 +126,10 @@ public class Memory {
      *   - CPU (during LDR, LDA, or instruction fetch)
      *   - ProgramLoader (to verify memory contents if needed)
      *
+     * Behavior:
+     *   - If cache is enabled, reads through cache (checks cache first)
+     *   - Otherwise, reads directly from memory
+     *
      * Throws:
      *   IllegalArgumentException if address is out of range.
      * ==============================================================
@@ -103,7 +137,46 @@ public class Memory {
     public int readWord(int address) {
         if (address < 0 || address >= SIZE)
             throw new IllegalArgumentException("Invalid memory address: " + address);
-        return mem[address] & 0xFFFF;  // Return 16-bit masked value
+        
+        if (cacheEnabled && cache != null) {
+            return cache.read(address, this);
+        } else {
+            return mem[address] & 0xFFFF;  // Return 16-bit masked value
+        }
+    }
+    
+    /* ==============================================================
+     * readWordDirect()
+     * --------------------------------------------------------------
+     * Direct memory read bypassing cache (used by cache miss handler).
+     *
+     * Parameters:
+     *   address — memory address (0–2047)
+     *
+     * Returns:
+     *   The 16-bit word stored at that address.
+     * ==============================================================
+     */
+    public int readWordDirect(int address) {
+        if (address < 0 || address >= SIZE)
+            throw new IllegalArgumentException("Invalid memory address: " + address);
+        return mem[address] & 0xFFFF;
+    }
+    
+    /* ==============================================================
+     * writeWordDirect()
+     * --------------------------------------------------------------
+     * Direct memory write bypassing cache (used by cache write-through).
+     *
+     * Parameters:
+     *   address — memory address (0–2047)
+     *   value   — data word to store
+     * ==============================================================
+     */
+    public void writeWordDirect(int address, int value) {
+        if (address < 0 || address >= SIZE)
+            throw new IllegalArgumentException("Invalid memory address: " + address);
+        mem[address] = value & 0xFFFF;
     }
 
     /* ==============================================================
@@ -147,6 +220,86 @@ public class Memory {
     }
 
     /* ==============================================================
+     * Cache Control and Statistics Methods
+     * --------------------------------------------------------------
+     */
+    
+    /**
+     * Enable cache
+     */
+    public void enableCache() {
+        this.cacheEnabled = true;
+    }
+    
+    /**
+     * Disable cache (direct memory access only)
+     */
+    public void disableCache() {
+        this.cacheEnabled = false;
+    }
+    
+    /**
+     * Check if cache is enabled
+     */
+    public boolean isCacheEnabled() {
+        return cacheEnabled;
+    }
+    
+    /**
+     * Get cache reference for statistics and control
+     */
+    public Cache getCache() {
+        return cache;
+    }
+    
+    /**
+     * Enable cache tracing to file
+     */
+    public void enableCacheTracing(String filename) {
+        if (cache != null) {
+            cache.enableTracing(filename);
+        }
+    }
+    
+    /**
+     * Disable cache tracing
+     */
+    public void disableCacheTracing() {
+        if (cache != null) {
+            cache.disableTracing();
+        }
+    }
+    
+    /**
+     * Get cache statistics
+     */
+    public String getCacheStatistics() {
+        if (cache != null) {
+            return cache.getStatistics();
+        }
+        return "Cache not available";
+    }
+    
+    /**
+     * Get cache contents
+     */
+    public String getCacheContents() {
+        if (cache != null) {
+            return cache.getCacheContents();
+        }
+        return "Cache not available";
+    }
+    
+    /**
+     * Reset cache statistics only
+     */
+    public void resetCacheStatistics() {
+        if (cache != null) {
+            cache.resetStatistics();
+        }
+    }
+
+    /* ==============================================================
      * Notes:
      * --------------------------------------------------------------
      * - Memory is modeled as a single integer array for simplicity.
@@ -154,6 +307,8 @@ public class Memory {
      *   word-level accuracy and bus width.
      * - Together with MAR and MBR, this forms the full
      *   CPU–Memory interface.
+     * - Cache integration provides performance improvement while
+     *   maintaining transparency to the CPU.
      * ==============================================================
      */
 }
