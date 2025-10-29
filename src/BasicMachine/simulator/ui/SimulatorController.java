@@ -310,9 +310,24 @@ public class SimulatorController {
         x2Field.setText(Utils.oct((short) x[1]));
         x3Field.setText(Utils.oct((short) x[2]));
 
+        // Update cache/memory display
         StringBuilder sb = new StringBuilder();
+        
+        // Cache statistics section
+        sb.append("=== CACHE STATISTICS ===\n");
+        if (memory.isCacheEnabled()) {
+            sb.append(memory.getCacheStatistics()).append("\n\n");
+            sb.append("=== CACHE CONTENTS ===\n");
+            sb.append(memory.getCacheContents()).append("\n");
+        } else {
+            sb.append("Cache is DISABLED\n\n");
+        }
+        
+        // Memory display section
+        sb.append("\n=== MEMORY (First 40 Words) ===\n");
         for (int i = 0; i < 40; i++)
             sb.append(String.format("%04o: %06o\n", i, memory.readWord(i)));
+        
         cacheArea.setText(sb.toString());
     }
 
@@ -321,5 +336,59 @@ public class SimulatorController {
         Alert a = new Alert(Alert.AlertType.ERROR, msg, ButtonType.OK);
         a.setHeaderText("Simulator");
         a.showAndWait();
+    }
+    
+    /* ==============================================================
+     * CACHE CONTROL METHODS (Field Engineer Console)
+     * --------------------------------------------------------------
+     * Methods for controlling and monitoring the cache system.
+     * These can be called from additional UI buttons or menu items.
+     * ==============================================================
+     */
+    
+    /**
+     * Enable cache tracing to file
+     */
+    public void enableCacheTracing() {
+        memory.enableCacheTracing("cache_trace.log");
+        printerArea.appendText("[CACHE] Tracing enabled to cache_trace.log\n");
+    }
+    
+    /**
+     * Disable cache tracing
+     */
+    public void disableCacheTracing() {
+        memory.disableCacheTracing();
+        printerArea.appendText("[CACHE] Tracing disabled\n");
+    }
+    
+    /**
+     * Reset cache statistics
+     */
+    public void resetCacheStats() {
+        memory.resetCacheStatistics();
+        printerArea.appendText("[CACHE] Statistics reset\n");
+        refreshAll();
+    }
+    
+    /**
+     * Toggle cache enable/disable
+     */
+    public void toggleCache() {
+        if (memory.isCacheEnabled()) {
+            memory.disableCache();
+            printerArea.appendText("[CACHE] Cache DISABLED (direct memory access)\n");
+        } else {
+            memory.enableCache();
+            printerArea.appendText("[CACHE] Cache ENABLED\n");
+        }
+        refreshAll();
+    }
+    
+    /**
+     * Print cache statistics to console
+     */
+    public void printCacheStats() {
+        printerArea.appendText("\n" + memory.getCacheStatistics() + "\n");
     }
 }
