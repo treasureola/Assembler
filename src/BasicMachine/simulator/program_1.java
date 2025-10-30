@@ -1,56 +1,65 @@
 package BasicMachine.simulator;
 
-import BasicMachine.Memory_Module.*;
-import BasicMachine.CPU_module.*;
+import BasicMachine.Memory_Module.Memory;
+import BasicMachine.CPU_Module.MachineCore;
+import BasicMachine.CPU_Module.Registers;
+
 import java.io.File;
 
 /**
  * ==============================================================
- * Program1.java (Part 2)
+ * Program1.java — Part 2
  * --------------------------------------------------------------
- * Purpose:
- *   Demonstrates integration of the Simple Cache and Enhanced
- *   Memory system with the CPU and Program Loader.
- *
- * Description:
- *   - Loads a program file (.ld or .lst) using ProgramLoader
- *   - Initializes Memory + Cache
- *   - Connects CPU to memory
- *   - Executes the program step-by-step
- *   - Reports cache performance statistics
+ * Demonstrates the integrated Cache + Memory + CPU system.
+ * Loads a .ld/.lst program, runs it using MachineCore, and prints
+ * cache statistics after execution.
  * ==============================================================
  */
 public class Program1 {
 
     public static void main(String[] args) {
         try {
-            System.out.println("=== Basic Machine: Part 2 (Cache Integration) ===\n");
+            System.out.println("=== Basic Machine Simulator — Part 2 (Cache Integration) ===\n");
 
-            // Step 1: Create enhanced memory and cache
-            Memory memory = new Memory(2048);
-            Cache cache = new Cache(8, memory);  // Example: 8-line cache
-            memory.attachCache(cache);
+            // ------------------------------------------------------
+            // 1. Initialize system memory (with integrated cache)
+            // ------------------------------------------------------
+            Memory memory = new Memory();
+            memory.enableCache();               // optional, enabled by default
+            memory.resetCacheStatistics();      // clear old stats
 
-            // Step 2: Load program into memory
+            // ------------------------------------------------------
+            // 2. Load program into memory
+            // ------------------------------------------------------
             ProgramLoader loader = new ProgramLoader();
-            File programFile = new File("src/BasicMachine/assembler/source.src"); // adjust path if needed
+            File programFile = new File("src/BasicMachine/assembler/source.ld");
             loader.load(programFile, memory);
 
-            // Step 3: Create CPU and connect memory/cache
-            CPU cpu = new CPU(memory, cache);
-            cpu.reset();
+            // ------------------------------------------------------
+            // 3. Initialize registers and CPU core
+            // ------------------------------------------------------
+            Registers registers = new Registers();
+            registers.setPC(memory.getProgramStartAddress());
 
-            System.out.println("[INFO] Starting program execution...\n");
+            MachineCore cpu = new MachineCore(memory, registers);
 
-            // Step 4: Run program (step-by-step or full run)
-            cpu.run();  // assuming your CPU supports run()
+            // ------------------------------------------------------
+            // 4. Run the program
+            // ------------------------------------------------------
+            System.out.printf("[INFO] Starting execution at PC=%06o%n%n",
+                    registers.getPC());
+            cpu.run();
 
-            System.out.println("\n[INFO] Program halted.");
-            System.out.println("[INFO] Final cache stats:");
-            cache.displayStats();
+            // ------------------------------------------------------
+            // 5. Report cache performance
+            // ------------------------------------------------------
+            System.out.println("\n=== Execution Complete ===");
+            System.out.println(memory.getCacheStatistics());
+            System.out.println("\nCache contents snapshot:");
+            System.out.println(memory.getCacheContents());
 
         } catch (Exception e) {
-            System.err.println("Error running Program 1: " + e.getMessage());
+            System.err.println("[ERROR] Program execution failed: " + e.getMessage());
             e.printStackTrace();
         }
     }
