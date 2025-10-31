@@ -1,0 +1,14 @@
+; ===========================================================
+; Program 1 – Basic Machine Instruction Set
+; -----------------------------------------------------------
+; Purpose:
+;   Demonstrates load, store, and halt instructions.
+;   Loads a constant into R0, stores it in memory, halts.
+; ===========================================================
+
+0010 LDR 0,0,20      ; Load value from address 20 into R0
+0011 STR 0,0,21      ; Store value of R0 into address 21
+0012 HLT             ; Halt execution
+
+; Data section
+0020 DEC 000123      ; Constant value 123 (octal 000123)
