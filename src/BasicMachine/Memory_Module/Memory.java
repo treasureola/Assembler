@@ -180,6 +180,24 @@ public class Memory {
     }
 
     /* ==============================================================
+     * peekWord()
+     * --------------------------------------------------------------
+     * Display-only direct read that bypasses the cache and
+     * does not affect cache statistics or timing.
+     *
+     * Used by:
+     *   - SimulatorController.refreshAll() to safely display memory
+     *     contents without triggering cache activity.
+     * ==============================================================
+     */
+    public int peekWord(int address) {
+        if (address < 0 || address >= SIZE)
+            throw new IllegalArgumentException("Invalid memory address: " + address);
+        return mem[address] & 0xFFFF;
+    }
+
+
+    /* ==============================================================
      * size()
      * --------------------------------------------------------------
      * Returns total number of addressable memory words.

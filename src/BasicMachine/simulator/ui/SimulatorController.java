@@ -11,43 +11,23 @@ import javafx.fxml.FXML;
 import javafx.scene.control.*;
 import javafx.scene.layout.HBox;
 import javafx.stage.FileChooser;
+
 import java.io.File;
+import java.util.Arrays;
+import java.util.LinkedList;
 
 /* ==============================================================
  * SimulatorController.java
  * --------------------------------------------------------------
- * Purpose:
- *   Acts as the controller for the Basic Machine Simulator UI.
- *   Handles all interaction between the user interface (FXML layout)
- *   and the backend modules: Memory, Registers, and MachineCore.
- *
- * Responsibilities:
- *   - Load assembled programs (.ld / .lst) into memory
- *   - Control execution (IPL, Step, Run, Halt)
- *   - Perform memory read/write operations (Load, Store)
- *   - Display register and memory state dynamically
- *   - Manage user console input/output
- *
- * Integration:
- *   Connects UI (simulator.fxml) ↔ CPU backend:
- *     Memory.java         — main memory array (2048 words)
- *     Registers.java      — holds GPR, IXR, PC, MAR, etc.
- *     MachineCore.java    — fetch–decode–execute engine
- *     ProgramLoader.java  — loads .ld files into memory
- *     Utils.java          — handles octal conversions
- *
+ * Controls the Basic Machine Simulator UI.
+ * Handles memory, CPU state, and user interaction.
  * ==============================================================
  */
 public class SimulatorController {
+    public static SimulatorController activeInstance;
 
     /* ==============================================================
      * UI COMPONENTS (wired via FXML)
-     * --------------------------------------------------------------
-     * Each field is automatically linked to a control element
-     * in simulator.fxml using the @FXML annotation.
-     *
-     * TextFields → represent CPU registers and user input boxes
-     * TextAreas  → display console and memory cache
      * ==============================================================
      */
     @FXML private TextField r0Field, r1Field, r2Field, r3Field;
@@ -56,13 +36,12 @@ public class SimulatorController {
     @FXML private HBox binaryLeds;
     @FXML private TextField octalInput, programFileField;
     @FXML private TextArea cacheArea, printerArea;
-    @FXML private TextField consoleInput;
+    @FXML private TextField consoleInputField;
+
+    private final LinkedList<String> consoleBuffer = new LinkedList<>();
 
     /* ==============================================================
      * CORE MODULES
-     * --------------------------------------------------------------
-     * These represent the simulated CPU’s components and are shared
-     * throughout the simulator session.
      * ==============================================================
      */
     private Memory memory;
@@ -71,36 +50,32 @@ public class SimulatorController {
     private final ProgramLoader loader = new ProgramLoader();
 
     private volatile boolean programLoaded = false;
-    private volatile boolean printedHalt = false;
 
     /* ==============================================================
-     * initialize()
-     * --------------------------------------------------------------
-     * Called automatically after FXML layout is loaded.
-     * Sets up memory, registers, and CPU core for the simulation.
+     * INITIALIZATION
      * ==============================================================
      */
     @FXML
     private void initialize() {
-        memory    = new Memory();
+        activeInstance = this;
+        memory = new Memory();
         registers = new Registers();
-        core      = new MachineCore(memory, registers);
-        core.setOnCycleListener(this::refreshAll);  // refresh GUI after each cycle
+        core = new MachineCore(memory, registers);
+
+        core.setPrinterOutput(msg -> Platform.runLater(() -> printerArea.appendText(msg)));
+        core.setOnCycleListener(this::refreshAll);
 
         registers.reset();
         memory.reset();
-        refreshAll();
+
+        Platform.runLater(this::refreshAll);
         printerArea.appendText("[READY] Basic Machine Simulator initialized.\n");
     }
 
     /* ==============================================================
      * FILE / IPL (Initial Program Load)
-     * --------------------------------------------------------------
-     * Handles user file browsing and program loading into memory.
      * ==============================================================
      */
-
-    /** Opens file chooser dialog to select .ld or .lst file. */
     @FXML
     private void onBrowse() {
         FileChooser fc = new FileChooser();
@@ -111,18 +86,22 @@ public class SimulatorController {
         if (f != null) programFileField.setText(f.getAbsolutePath());
     }
 
-    /** Loads selected program file into memory and sets PC to start address. */
     @FXML
     private void onIPL() {
         try {
             String filePath = programFileField.getText().trim();
-            if (filePath.isEmpty()) { showError("Please select a program file."); return; }
+            if (filePath.isEmpty()) {
+                showError("Please select a program file.");
+                return;
+            }
+
+            memory.reset();
+            registers.reset();
 
             loader.load(new File(filePath), memory);
             programLoaded = true;
-            printedHalt = false;
 
-            int startAddr = memory.getProgramStartAddress();
+            int startAddr = loader.getProgramStartAddress();
             registers.setPC(startAddr);
 
             registers.setMAR(0);
@@ -133,6 +112,7 @@ public class SimulatorController {
                     + new File(filePath).getName() + "\n");
             printerArea.appendText(String.format("[START] Program begins at address %04o\n", startAddr));
             refreshAll();
+
         } catch (Exception e) {
             showError("IPL failed: " + e.getMessage());
         }
@@ -140,15 +120,14 @@ public class SimulatorController {
 
     /* ==============================================================
      * EXECUTION CONTROL (STEP / RUN / HALT)
-     * --------------------------------------------------------------
-     * Controls CPU execution modes.
      * ==============================================================
      */
-
-    /** Executes one fetch–decode–execute cycle. */
     @FXML
     private void onStep() {
-        if (!programLoaded) { showError("No program loaded. Perform IPL first."); return; }
+        if (!programLoaded) {
+            showError("No program loaded. Perform IPL first.");
+            return;
+        }
         try {
             core.runOneCycle();
             Platform.runLater(this::refreshAll);
@@ -158,29 +137,36 @@ public class SimulatorController {
         }
     }
 
-    /** Runs the loaded program continuously until a HLT instruction. */
     @FXML
     private void onRun() {
-        if (!programLoaded) { showError("No program loaded. Perform IPL first."); return; }
+        if (!programLoaded) {
+            showError("No program loaded. Perform IPL first.");
+            return;
+        }
 
         printerArea.appendText("[RUN] Program running...\n");
 
-        new Thread(() -> {
+        Thread t = new Thread(() -> {
             try {
                 while (!core.isHalted()) {
-                    Platform.runLater(() -> {
-                        core.runOneCycle();
-                        refreshAll();
-                    });
-                    Thread.sleep(300); // delay for visible update
+                    core.runOneCycle();
+                    Platform.runLater(this::refreshAll);
+                    Thread.sleep(200);
                 }
-                Platform.runLater(() ->
-                        printerArea.appendText("[HALT] Program finished.\n"));
-            } catch (InterruptedException ignored) {}
-        }).start();
+
+                Platform.runLater(() -> {
+                    refreshAll();
+                    printerArea.appendText("[HALT] Program finished.\n");
+                });
+            } catch (Exception e) {
+                Platform.runLater(() -> showError("Run failed: " + e.getMessage()));
+            }
+        });
+
+        t.setDaemon(true);
+        t.start();
     }
 
-    /** Stops program execution manually. */
     @FXML
     private void onHalt() {
         core.stop();
@@ -188,13 +174,9 @@ public class SimulatorController {
     }
 
     /* ==============================================================
-     * MEMORY OPERATIONS (LOAD / STORE)
-     * --------------------------------------------------------------
-     * Handles direct memory editing via the MAR and MBR text fields.
+     * MEMORY OPERATIONS
      * ==============================================================
      */
-
-    /** LOAD: Writes value from octalInput → memory[MAR]. */
     @FXML
     private void onLoad() {
         try {
@@ -211,7 +193,6 @@ public class SimulatorController {
         }
     }
 
-    /** LOAD+: Same as LOAD, but increments MAR afterward. */
     @FXML
     private void onLoadPlus() {
         try {
@@ -230,7 +211,6 @@ public class SimulatorController {
         }
     }
 
-    /** STORE: Reads memory[MAR] → MBR → octalInput. */
     @FXML
     private void onStore() {
         try {
@@ -247,7 +227,6 @@ public class SimulatorController {
         }
     }
 
-    /** STORE+: Same as STORE, but increments MAR afterward. */
     @FXML
     private void onStorePlus() {
         try {
@@ -267,113 +246,129 @@ public class SimulatorController {
     }
 
     /* ==============================================================
-     * CONSOLE / USER INPUT
-     * --------------------------------------------------------------
-     * Provides simple echo-based console I/O for user commands.
+     * CONSOLE INPUT HANDLING (IN instruction)
      * ==============================================================
      */
     @FXML
     private void onConsoleSend() {
-        String s = consoleInput.getText();
-        if (s != null && !s.isEmpty()) {
-            printerArea.appendText("[CONSOLE] " + s + "\n");
-            consoleInput.clear();
+        if (consoleInputField == null) {
+            System.err.println("[ERROR] consoleInputField is not linked to FXML!");
+            return;
         }
+
+        String text = consoleInputField.getText();
+        if (text == null) text = "";
+        text = text.trim();
+
+        if (!text.isEmpty()) {
+            synchronized (consoleBuffer) {
+                consoleBuffer.add(text);
+            }
+            printerArea.appendText("[USER INPUT] " + text + "\n");
+            consoleInputField.clear();
+        } else {
+            printerArea.appendText("[WARN] Empty input ignored.\n");
+        }
+    }
+
+    public String pollConsoleInput() {
+        synchronized (consoleBuffer) {
+            if (!consoleBuffer.isEmpty()) {
+                return consoleBuffer.removeFirst();
+            }
+        }
+        return null;
     }
 
     /* ==============================================================
-     * REFRESH AND ERROR HANDLING
-     * --------------------------------------------------------------
-     * Updates all register and memory displays after every instruction.
+     * REFRESH & ERROR HANDLING
      * ==============================================================
      */
-
-    /** Updates all on-screen register and memory values. */
     private void refreshAll() {
-        pcField.setText (Utils.oct((short) registers.getPC()));
-        marField.setText(Utils.oct((short) registers.getMAR()));
-        mbrField.setText(Utils.oct((short) registers.getMBR()));
-        irField.setText (Utils.oct((short) registers.getIR()));
-        mfrField.setText(Utils.oct((short) registers.getMFR()));
+        int pc = registers.getPC();
+        int mar = registers.getMAR();
+        int mbr = registers.getMBR();
+        int ir = registers.getIR();
+        int mfr = registers.getMFR();
+        int cc = registers.getCC();
 
-        ccField.setText(String.format("%4s",
-                Integer.toBinaryString(registers.getCC() & 0xF)).replace(' ', '0'));
+        int[] g = Arrays.copyOf(registers.getGPR(), 4);
+        int[] x = Arrays.copyOf(registers.getIXR(), 3);
 
-        int[] g = registers.getGPR();
-        r0Field.setText(Utils.oct((short) g[0]));
-        r1Field.setText(Utils.oct((short) g[1]));
-        r2Field.setText(Utils.oct((short) g[2]));
-        r3Field.setText(Utils.oct((short) g[3]));
+        String cacheStats;
+        String cacheContent;
+        int[] memorySnapshot = new int[40];
 
-        int[] x = registers.getIXR();
-        x1Field.setText(Utils.oct((short) x[0]));
-        x2Field.setText(Utils.oct((short) x[1]));
-        x3Field.setText(Utils.oct((short) x[2]));
-
-        // Update cache/memory display
-        StringBuilder sb = new StringBuilder();
-        
-        // Cache statistics section
-        sb.append("=== CACHE STATISTICS ===\n");
-        if (memory.isCacheEnabled()) {
-            sb.append(memory.getCacheStatistics()).append("\n\n");
-            sb.append("=== CACHE CONTENTS ===\n");
-            sb.append(memory.getCacheContents()).append("\n");
-        } else {
-            sb.append("Cache is DISABLED\n\n");
+        synchronized (memory) {
+            cacheStats = memory.getCacheStatistics();
+            cacheContent = memory.getCacheContents();
+            for (int i = 0; i < 40; i++) {
+                memorySnapshot[i] = memory.peekWord(i);
+            }
         }
-        
-        // Memory display section
-        sb.append("\n=== MEMORY (First 40 Words) ===\n");
-        for (int i = 0; i < 40; i++)
-            sb.append(String.format("%04o: %06o\n", i, memory.readWord(i)));
-        
-        cacheArea.setText(sb.toString());
+
+        Platform.runLater(() -> {
+            try {
+                pcField.setText(Utils.oct((short) pc));
+                marField.setText(Utils.oct((short) mar));
+                mbrField.setText(Utils.oct((short) mbr));
+                irField.setText(Utils.oct((short) ir));
+                mfrField.setText(Utils.oct((short) mfr));
+                ccField.setText(String.format("%4s", Integer.toBinaryString(cc & 0xF)).replace(' ', '0'));
+
+                r0Field.setText(Utils.oct((short) g[0]));
+                r1Field.setText(Utils.oct((short) g[1]));
+                r2Field.setText(Utils.oct((short) g[2]));
+                r3Field.setText(Utils.oct((short) g[3]));
+
+                x1Field.setText(Utils.oct((short) x[0]));
+                x2Field.setText(Utils.oct((short) x[1]));
+                x3Field.setText(Utils.oct((short) x[2]));
+
+                StringBuilder sb = new StringBuilder();
+                sb.append("=== CACHE STATISTICS ===\n")
+                        .append(cacheStats).append("\n\n")
+                        .append("=== CACHE CONTENTS ===\n")
+                        .append(cacheContent).append("\n\n")
+                        .append("=== MEMORY (First 40 Words) ===\n");
+
+                for (int i = 0; i < memorySnapshot.length; i++) {
+                    sb.append(String.format("%04o: %06o\n", i, memorySnapshot[i]));
+                }
+
+                cacheArea.setText(sb.toString());
+            } catch (Exception e) {
+                System.err.println("[UI WARN] refreshAll() skipped: " + e.getMessage());
+            }
+        });
     }
 
-    /** Displays a simple popup alert for user-visible errors. */
     private void showError(String msg) {
         Alert a = new Alert(Alert.AlertType.ERROR, msg, ButtonType.OK);
         a.setHeaderText("Simulator");
         a.showAndWait();
     }
-    
+
     /* ==============================================================
-     * CACHE CONTROL METHODS (Field Engineer Console)
-     * --------------------------------------------------------------
-     * Methods for controlling and monitoring the cache system.
-     * These can be called from additional UI buttons or menu items.
+     * CACHE CONTROL
      * ==============================================================
-     */
-    
-    /**
-     * Enable cache tracing to file
      */
     public void enableCacheTracing() {
         memory.enableCacheTracing("cache_trace.log");
         printerArea.appendText("[CACHE] Tracing enabled to cache_trace.log\n");
     }
-    
-    /**
-     * Disable cache tracing
-     */
+
     public void disableCacheTracing() {
         memory.disableCacheTracing();
         printerArea.appendText("[CACHE] Tracing disabled\n");
     }
-    
-    /**
-     * Reset cache statistics
-     */
+
     public void resetCacheStats() {
         memory.resetCacheStatistics();
         printerArea.appendText("[CACHE] Statistics reset\n");
         refreshAll();
     }
-    
-    /**
-     * Toggle cache enable/disable
-     */
+
     public void toggleCache() {
         if (memory.isCacheEnabled()) {
             memory.disableCache();
@@ -384,10 +379,7 @@ public class SimulatorController {
         }
         refreshAll();
     }
-    
-    /**
-     * Print cache statistics to console
-     */
+
     public void printCacheStats() {
         printerArea.appendText("\n" + memory.getCacheStatistics() + "\n");
     }

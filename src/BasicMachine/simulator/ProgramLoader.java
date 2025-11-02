@@ -5,100 +5,40 @@ import java.io.*;
 import java.nio.charset.StandardCharsets;
 import java.util.Set;
 
-/* ==============================================================
- * ProgramLoader.java
- * --------------------------------------------------------------
- * Purpose:
- *   Responsible for loading assembled machine code (.ld or .lst)
- *   into the Basic Machine’s memory for execution.
- *
- * Description:
- *   The ProgramLoader reads the assembler’s output file, interprets
- *   each line as an octal memory address and value pair, and stores
- *   them into Memory.
- *
- *   It then determines a suitable starting address for the Program Counter (PC),
- *   skipping over reserved data or zero padding at the beginning of memory.
- *
- * Integration:
- *   Used by:
- *     - SimulatorController.onIPL() (GUI: Initial Program Load)
- *     - MainSimulator.java (command-line execution)
- *
- *   Depends on:
- *     - Memory.java (for read/write and storage)
- *     - Assembler output (load.ld / output.lst)
- *
- * ==============================================================
- */
 public class ProgramLoader {
+    private int programStartAddress = 0;
 
-    /* ==============================================================
-     * KNOWN OPCODES
-     * --------------------------------------------------------------
-     * The set of operation codes currently recognized by the simulator.
-     * Used to detect the first executable instruction in memory.
-     *
-     * These codes correspond to those defined in InstructionSet.java:
-     *   1  = LDR
-     *   2  = STR
-     *   3  = LDX
-     *   4  = LDA
-     *   10 = JZ
-     *   33 = HLT
-     *
-     * As more instructions are implemented, they can be added here.
-     * ==============================================================
-     */
-    private static final Set<Integer> KNOWN_OPCODES = Set.of(1, 2, 3, 4, 10, 33);
+    // Add every opcode your CPU implements (decimal values of the top 6 bits)
+    private static final Set<Integer> KNOWN_OPCODES = Set.of(
+            // load/store/addressing
+            0, 1, 2, 3, 33, 34,
+            // arithmetic/immediate
+            4, 5, 6, 7,
+            // branches / control
+            8, 9, 10, 11, 12, 13, 14, 15, 16,
+            // reg-reg
+            56, 57, 58, 59, 60, 61,
+            // shift/rotate
+            25, 26,
+            // I/O
+            49, 50
+    );
 
-    /* ==============================================================
-     * load()
-     * --------------------------------------------------------------
-     * Reads a .ld or .lst file and loads its contents into memory.
-     *
-     * File format expected (octal values):
-     *     <address> <value>
-     *
-     * Example:
-     *     0010 102207
-     *     0011 003412
-     *     0012 020100
-     *
-     * Steps:
-     *   1. Clear memory before loading
-     *   2. Read file line-by-line
-     *   3. Parse each address and instruction
-     *   4. Store in memory
-     *   5. Identify program start address (via heuristic)
-     *
-     * Parameters:
-     *   file   — the .ld or .lst file to load
-     *   memory — Memory object to load into
-     *
-     * Throws:
-     *   Exception if file cannot be read or format is invalid
-     * ==============================================================
-     */
     public void load(File file, Memory memory) throws Exception {
-        if (memory == null)
-            throw new IllegalArgumentException("Memory is null");
-
-        // Reset memory before loading new program
+        if (memory == null) throw new IllegalArgumentException("Memory is null");
         memory.reset();
 
-        int firstLoaded = -1;
-        int lastLoaded  = -1;
+        int firstLoaded = -1, lastLoaded = -1;
 
         try (BufferedReader br = new BufferedReader(
                 new InputStreamReader(new FileInputStream(file), StandardCharsets.UTF_8))) {
 
             String line;
             while ((line = br.readLine()) != null) {
-                String raw = strip(line).trim();
-                if (raw.isEmpty()) continue;  // Skip comments and blanks
+                String raw = strip(line);
+                if (raw.isBlank()) continue;
 
-                String[] parts = raw.split("\\s+");
+                String[] parts = raw.trim().split("\\s+");
                 if (parts.length < 2) continue;
 
                 int addr = Integer.parseInt(parts[0], 8);
@@ -107,99 +47,59 @@ public class ProgramLoader {
                 memory.writeWord(addr, val);
 
                 if (firstLoaded == -1) firstLoaded = addr;
-                if (addr > lastLoaded)  lastLoaded  = addr;
+                if (lastLoaded  <  addr)          lastLoaded  = addr;
             }
         }
 
-        // Determine a starting program address
-        int start = (firstLoaded >= 0)
-                ? findStart(memory, firstLoaded, lastLoaded)
-                : 0;
+        if (firstLoaded < 0) {
+            programStartAddress = 0;
+        } else {
+            programStartAddress = findStart(memory, firstLoaded, lastLoaded);
+        }
 
-        memory.setProgramStartAddress(start);
-        System.out.printf("[IPL] Program start address set to %06o%n", start);
+        memory.setProgramStartAddress(programStartAddress);
+
+        int word   = memory.readWord(programStartAddress) & 0xFFFF;
+        int opcode = (word >> 10) & 0x3F;
+        System.out.printf("[DEBUG] Start at %06o (opcode %d, word %06o)%n",
+                programStartAddress, opcode, word);
     }
 
-    /* ==============================================================
-     * findStart()
-     * --------------------------------------------------------------
-     * Determines the first address in memory that likely contains
-     * the beginning of executable instructions.
-     *
-     * Heuristic:
-     *   1. Prefer the first pair of *two consecutive known opcodes*.
-     *      This helps skip data constants (like 002000).
-     *   2. If no consecutive opcodes found, pick the first single
-     *      known opcode.
-     *   3. If no known opcodes exist, default to the first loaded word.
-     *
-     * Parameters:
-     *   mem  — Memory object containing loaded program
-     *   from — first loaded address
-     *   to   — last loaded address
-     *
-     * Returns:
-     *   starting address for the Program Counter (PC)
-     * ==============================================================
-     */
+    // ======== start detection ========
     private int findStart(Memory mem, int from, int to) {
-        // Pass 1: require two consecutive known opcodes
-        for (int a = from; a < to; a++) {
-            if (isKnownOpcode(mem.readWord(a)) &&
-                    isKnownOpcode(mem.readWord(a + 1))) {
-                debugFound(a, mem);
-                return a;
-            }
-        }
+        // helper: 6-bit opcode
+        java.util.function.IntUnaryOperator op = w -> ((w & 0xFFFF) >>> 10) & 0x3F;
 
-        // Pass 2: first single known opcode
+        // Pass A: first address where we see a known opcode followed by another known
+        // within the next 1–3 words. Also reject opcode==0 (HLT) as a starter.
         for (int a = from; a <= to; a++) {
-            if (isKnownOpcode(mem.readWord(a))) {
-                debugFound(a, mem);
-                return a;
+            int o0 = op.applyAsInt(mem.readWord(a));
+            if (o0 != 0 && KNOWN_OPCODES.contains(o0)) {
+                for (int k = 1; k <= 3 && a + k <= to; k++) {
+                    int ok = op.applyAsInt(mem.readWord(a + k));
+                    if (ok != 0 && KNOWN_OPCODES.contains(ok)) {
+                        return a;
+                    }
+                }
             }
         }
 
-        // Fallback: first loaded address
-        System.out.println("DEBUG: No plausible opcode run found; defaulting to "
-                + Integer.toOctalString(from));
+        // Pass B: first single known opcode (not 0)
+        for (int a = from; a <= to; a++) {
+            int o = op.applyAsInt(mem.readWord(a));
+            if (o != 0 && KNOWN_OPCODES.contains(o)) return a;
+        }
+
+        // Pass C: first word that looks like an instruction (has higher bits set)
+        for (int a = from; a <= to; a++) {
+            int w = mem.readWord(a) & 0xFFFF;
+            if (w >= 010000) return a;  // octal 10000: definitely not a tiny data literal
+        }
+
+        // Fallback: just start at the first loaded address
         return from;
     }
 
-    /* ==============================================================
-     * isKnownOpcode()
-     * --------------------------------------------------------------
-     * Extracts the 6-bit opcode from a 16-bit instruction word
-     * and checks if it exists in the KNOWN_OPCODES set.
-     * ==============================================================
-     */
-    private boolean isKnownOpcode(int word) {
-        int opcode = (word >> 10) & 0x3F; // extract bits [15..10]
-        return KNOWN_OPCODES.contains(opcode);
-    }
-
-    /* ==============================================================
-     * debugFound()
-     * --------------------------------------------------------------
-     * Prints debugging info when a plausible start address is found.
-     * ==============================================================
-     */
-    private void debugFound(int addr, Memory mem) {
-        int w = mem.readWord(addr) & 0xFFFF;
-        int opcode = (w >> 10) & 0x3F;
-        System.out.printf("DEBUG: Start at %06o (opcode %d, word %06o)%n", addr, opcode, w);
-    }
-
-    /* ==============================================================
-     * strip()
-     * --------------------------------------------------------------
-     * Removes inline comments from assembler output lines.
-     * Recognizes:
-     *   - ';'  (standard assembler comment)
-     *   - '#'  (Python-style)
-     *   - '//' (C/Java-style)
-     * ==============================================================
-     */
     private String strip(String s) {
         int cut = s.length();
         int a = s.indexOf(';');   if (a >= 0) cut = Math.min(cut, a);
@@ -207,4 +107,6 @@ public class ProgramLoader {
         int c = s.indexOf("//");  if (c >= 0) cut = Math.min(cut, c);
         return s.substring(0, cut);
     }
+
+    public int getProgramStartAddress() { return programStartAddress; }
 }
