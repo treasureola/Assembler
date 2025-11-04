@@ -5,49 +5,65 @@ import java.io.*;
 import java.nio.charset.StandardCharsets;
 import java.util.Set;
 
+/**
+ * ==============================================================
+ * ProgramLoader.java (final stable version)
+ * --------------------------------------------------------------
+ * Loads an assembled .ld file into memory and finds the first
+ * executable instruction (skipping leading data words).
+ * ==============================================================
+ */
 public class ProgramLoader {
     private int programStartAddress = 0;
 
-    // Add every opcode your CPU implements (decimal values of the top 6 bits)
+    // Recognized opcodes (decimal value of 6-bit opcode)
     private static final Set<Integer> KNOWN_OPCODES = Set.of(
-            // load/store/addressing
-            0, 1, 2, 3, 33, 34,
+            // load/store (1, 2, 3, 4 are LDR, STR, LDA, ?? )
+            1, 2, 3, 4,
+            // LDX (41 octal = 33 decimal)
+            33,
+            // STX (42 octal = 34 decimal) <- ADD THIS
+            34,
             // arithmetic/immediate
-            4, 5, 6, 7,
+            5, 6, 7,
             // branches / control
             8, 9, 10, 11, 12, 13, 14, 15, 16,
-            // reg-reg
+            // logical / reg-reg
             56, 57, 58, 59, 60, 61,
-            // shift/rotate
+            // shift / rotate
             25, 26,
             // I/O
             49, 50
     );
 
+    /**
+     * Loads the program into memory.
+     */
     public void load(File file, Memory memory) throws Exception {
-        if (memory == null) throw new IllegalArgumentException("Memory is null");
+//        memory.disableCache();  // ✅ Bypass cache for program loading
+        memory.enableCache();
+        if (memory == null)
+            throw new IllegalArgumentException("Memory is null");
         memory.reset();
 
         int firstLoaded = -1, lastLoaded = -1;
-
         try (BufferedReader br = new BufferedReader(
                 new InputStreamReader(new FileInputStream(file), StandardCharsets.UTF_8))) {
 
             String line;
             while ((line = br.readLine()) != null) {
-                String raw = strip(line);
-                if (raw.isBlank()) continue;
+                String raw = strip(line).trim();
+                if (raw.isEmpty()) continue;
 
-                String[] parts = raw.trim().split("\\s+");
+                String[] parts = raw.split("\\s+");
                 if (parts.length < 2) continue;
 
                 int addr = Integer.parseInt(parts[0], 8);
-                int val  = Integer.parseInt(parts[1], 8);
+                int val = Integer.parseInt(parts[1], 8);
 
                 memory.writeWord(addr, val);
-
                 if (firstLoaded == -1) firstLoaded = addr;
-                if (lastLoaded  <  addr)          lastLoaded  = addr;
+                if (addr > lastLoaded) lastLoaded = addr;
             }
         }
 
@@ -59,47 +75,39 @@ public class ProgramLoader {
 
         memory.setProgramStartAddress(programStartAddress);
 
-        int word   = memory.readWord(programStartAddress) & 0xFFFF;
+        int word = memory.readWord(programStartAddress) & 0xFFFF;
         int opcode = (word >> 10) & 0x3F;
         System.out.printf("[DEBUG] Start at %06o (opcode %d, word %06o)%n",
                 programStartAddress, opcode, word);
     }
 
-    // ======== start detection ========
+    /**
+     * Heuristic: find first address that likely holds code.
+     */
     private int findStart(Memory mem, int from, int to) {
-        // helper: 6-bit opcode
         java.util.function.IntUnaryOperator op = w -> ((w & 0xFFFF) >>> 10) & 0x3F;
 
-        // Pass A: first address where we see a known opcode followed by another known
-        // within the next 1–3 words. Also reject opcode==0 (HLT) as a starter.
+        // Pass 1: find first known opcode that’s not 0 (HLT at start is invalid)
         for (int a = from; a <= to; a++) {
-            int o0 = op.applyAsInt(mem.readWord(a));
-            if (o0 != 0 && KNOWN_OPCODES.contains(o0)) {
-                for (int k = 1; k <= 3 && a + k <= to; k++) {
-                    int ok = op.applyAsInt(mem.readWord(a + k));
-                    if (ok != 0 && KNOWN_OPCODES.contains(ok)) {
-                        return a;
-                    }
-                }
+            int code = op.applyAsInt(mem.readWord(a));
+            if (code != 0 && KNOWN_OPCODES.contains(code)) {
+                return a;
             }
         }
 
-        // Pass B: first single known opcode (not 0)
-        for (int a = from; a <= to; a++) {
-            int o = op.applyAsInt(mem.readWord(a));
-            if (o != 0 && KNOWN_OPCODES.contains(o)) return a;
-        }
-
-        // Pass C: first word that looks like an instruction (has higher bits set)
+        // Pass 2: fallback — find first word with high bits set (>= octal 010000)
         for (int a = from; a <= to; a++) {
             int w = mem.readWord(a) & 0xFFFF;
-            if (w >= 010000) return a;  // octal 10000: definitely not a tiny data literal
+            if (w >= 010000) return a;
         }
 
-        // Fallback: just start at the first loaded address
+        // Pass 3: ultimate fallback
+        System.out.println("DEBUG: No plausible opcode found; defaulting to " +
+                Integer.toOctalString(from));
         return from;
     }
 
+    /** Removes inline comments and garbage text */
     private String strip(String s) {
         int cut = s.length();
         int a = s.indexOf(';');   if (a >= 0) cut = Math.min(cut, a);

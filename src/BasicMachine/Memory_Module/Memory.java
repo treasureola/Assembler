@@ -109,6 +109,7 @@ public class Memory {
         } else {
             mem[address] = value & 0xFFFF;  // Mask to 16 bits
         }
+        System.out.printf("[DEBUG] writeWord: addr=%04o val=%06o%n", address, value & 0xFFFF);
     }
 
     /* ==============================================================
@@ -135,16 +136,17 @@ public class Memory {
      * ==============================================================
      */
     public int readWord(int address) {
+        System.out.printf("[DEBUG] readWord: addr=%04o val=%06o%n", address, mem[address]);
         if (address < 0 || address >= SIZE)
             throw new IllegalArgumentException("Invalid memory address: " + address);
-        
+
         if (cacheEnabled && cache != null) {
             return cache.read(address, this);
         } else {
             return mem[address] & 0xFFFF;  // Return 16-bit masked value
         }
     }
-    
+
     /* ==============================================================
      * readWordDirect()
      * --------------------------------------------------------------
@@ -178,6 +180,40 @@ public class Memory {
             throw new IllegalArgumentException("Invalid memory address: " + address);
         mem[address] = value & 0xFFFF;
     }
+
+    // ===============================================================
+// Cache-aware CPU access wrappers
+// ===============================================================
+
+    /**
+     * Read a word for CPU execution (counts toward cache stats).
+     */
+    public int readForCPU(int address) {
+        if (address < 0 || address >= SIZE)
+            throw new IllegalArgumentException("Invalid memory address: " + address);
+
+        // Go through cache if enabled
+        if (cacheEnabled && cache != null) {
+            return cache.read(address, this) & 0xFFFF;
+        }
+        return mem[address] & 0xFFFF;
+    }
+
+    /**
+     * Write a word for CPU execution (counts toward cache stats).
+     */
+    public void writeFromCPU(int address, int value) {
+        if (address < 0 || address >= SIZE)
+            throw new IllegalArgumentException("Invalid memory address: " + address);
+
+        // Go through cache if enabled
+        if (cacheEnabled && cache != null) {
+            cache.write(address, value, this);
+        } else {
+            mem[address] = value & 0xFFFF;
+        }
+    }
+
 
     /* ==============================================================
      * peekWord()

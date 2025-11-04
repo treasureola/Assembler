@@ -15,7 +15,7 @@ import java.time.format.DateTimeFormatter;
  */
 public class Cache {
     private static final int CACHE_SIZE = 16;
-    private int totalAccesses;   // ✅ track total reads + writes
+    private int totalAccesses;
 
     // Cache line structure
     private class CacheLine {
@@ -63,7 +63,7 @@ public class Cache {
         misses = 0;
         reads = 0;
         writes = 0;
-        totalAccesses = 0;  // ✅ initialize
+        totalAccesses = 0;
         tracingEnabled = false;
     }
 
@@ -102,7 +102,7 @@ public class Cache {
 
     /** Read from cache */
     public int read(int address, Memory memory) {
-        totalAccesses++;   // ✅ count every memory access
+        totalAccesses++;
         reads++;
 
         // Search for address in cache
@@ -139,7 +139,7 @@ public class Cache {
 
     /** Write to cache (write-through) */
     public void write(int address, int data, Memory memory) {
-        totalAccesses++;   // ✅ count every memory access
+        totalAccesses++;
         writes++;
 
         // Always write through to memory
@@ -203,7 +203,7 @@ public class Cache {
         misses = 0;
         reads = 0;
         writes = 0;
-        totalAccesses = 0;  // ✅ reset counter
+        totalAccesses = 0;
         writeTrace("CACHE RESET");
     }
 
@@ -213,7 +213,7 @@ public class Cache {
         misses = 0;
         reads = 0;
         writes = 0;
-        totalAccesses = 0;  // ✅ reset counter
+        totalAccesses = 0;
         writeTrace("STATISTICS RESET");
     }
 

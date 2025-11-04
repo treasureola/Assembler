@@ -37,6 +37,12 @@ public class SimulatorController {
     @FXML private TextField octalInput, programFileField;
     @FXML private TextArea cacheArea, printerArea;
     @FXML private TextField consoleInputField;
+    private void appendNarrative(String msg) {
+        // Use the same printer area for narrative logs
+        Platform.runLater(() -> printerArea.appendText("[NARRATIVE] " + msg + "\n"));
+    }
+
+
 
     private final LinkedList<String> consoleBuffer = new LinkedList<>();
 
@@ -61,6 +67,8 @@ public class SimulatorController {
         memory = new Memory();
         registers = new Registers();
         core = new MachineCore(memory, registers);
+
+        core.setExecutionListener(this::appendNarrative);
 
         core.setPrinterOutput(msg -> Platform.runLater(() -> printerArea.appendText(msg)));
         core.setOnCycleListener(this::refreshAll);
@@ -263,7 +271,9 @@ public class SimulatorController {
         if (!text.isEmpty()) {
             synchronized (consoleBuffer) {
                 consoleBuffer.add(text);
+                consoleBuffer.notifyAll(); // wake up waiting CPU thread
             }
+
             printerArea.appendText("[USER INPUT] " + text + "\n");
             consoleInputField.clear();
         } else {
@@ -273,12 +283,18 @@ public class SimulatorController {
 
     public String pollConsoleInput() {
         synchronized (consoleBuffer) {
-            if (!consoleBuffer.isEmpty()) {
-                return consoleBuffer.removeFirst();
+            while (consoleBuffer.isEmpty()) {
+                try {
+                    consoleBuffer.wait(); // wait until user types something
+                } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
+                    return null;
+                }
             }
+            return consoleBuffer.removeFirst();
         }
-        return null;
     }
+
 
     /* ==============================================================
      * REFRESH & ERROR HANDLING
@@ -354,8 +370,8 @@ public class SimulatorController {
      * ==============================================================
      */
     public void enableCacheTracing() {
-        memory.enableCacheTracing("cache_trace.log");
-        printerArea.appendText("[CACHE] Tracing enabled to cache_trace.log\n");
+        memory.enableCacheTracing("TestFilesExplanation.txt");
+        printerArea.appendText("[CACHE] Tracing enabled to TestFilesExplanation.txt\n");
     }
 
     public void disableCacheTracing() {
@@ -379,6 +395,11 @@ public class SimulatorController {
         }
         refreshAll();
     }
+
+    public void appendPrinter(String msg) {
+        javafx.application.Platform.runLater(() -> printerArea.appendText(msg));
+    }
+
 
     public void printCacheStats() {
         printerArea.appendText("\n" + memory.getCacheStatistics() + "\n");

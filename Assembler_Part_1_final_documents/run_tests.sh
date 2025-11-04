@@ -5,12 +5,12 @@
 # Purpose:
 #   Automated test runner for the Basic Machine Simulator project.
 #   This script compiles the project’s core Java source files and
-#   all test files, then executes the consolidated TestRunner class.
+#   all test files, then executes the consolidated BasicMachine.TestRunner class.
 #
 # Description:
 #   - Compiles all Java source files under src/, excluding GUI (JavaFX) files.
 #   - Compiles all automated test classes under tests/.
-#   - Executes TestRunner.java, which runs the four major test cases:
+#   - Executes BasicMachine.TestRunner.java, which runs the four major test cases:
 #       1. MemoryTest.java
 #       2. CPUInstructionTest.java
 #       3. IntegrationTest.java
@@ -59,9 +59,9 @@ echo "Compiling tests..."
 javac -cp out:src -d out/tests $(find tests -name "*.java")
 
 # ==============================================================
-# Step 4 — Execute consolidated TestRunner
+# Step 4 — Execute consolidated BasicMachine.TestRunner
 # --------------------------------------------------------------
-#  - Runs the TestRunner class, which executes all test suites
+#  - Runs the BasicMachine.TestRunner class, which executes all test suites
 #    and prints a pass/fail summary.
 #  - Uses both the core (out/) and test (out/tests) directories
 #    as part of the classpath for dependency resolution.
