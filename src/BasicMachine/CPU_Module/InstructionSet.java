@@ -10,102 +10,68 @@ package BasicMachine.CPU_Module;
  * Instruction Encoding (16 bits total):
  * ------------------------------------
  * | Bits | Field | Description                 |
- * |------|--------|-----------------------------|
- * |15-10 | opcode | Operation code (6 bits)     |
- * | 9-8  | R      | General-purpose register ID |
- * | 7-6  | IX     | Index register (0–3)        |
- * |  5   | I      | Indirect flag (1=indirect)  |
- * | 4-0  | addr   | Memory address (0–31)       |
+ * |------|-------|-----------------------------|
+ * |15-10 | opcode| Operation code (6 bits)     |
+ * | 9-8  | R     | General-purpose register ID |
+ * | 7-6  | IX    | Index register (0..3)       |
+ * |  5   | I     | 1=indirect, 0=direct       |
+ * | 4-0  | addr  | 5-bit address / immediate  |
  *
- * Example breakdown (from listing file):
- *   102207 (octal) = opcode=33 (LDX), R=0, IX=2, I=0, addr=7
- *   003412 (octal) = opcode=1  (LDR), R=3, IX=0, I=0, addr=10
- *   020100 (octal) = opcode=8  (JZ),  R=0, IX=1, I=0, addr=0
- *   000000 (octal) = opcode=0  (HLT)
- *
- * This class is referenced by:
- *   - MachineCore.java (for decode/execute switch logic)
- *   - Assembler.java   (for consistent opcode mapping)
- *   - ProgramLoader.java (for interpretation of .ld programs)
+ * NOTE: For register–register instructions (TRR/MLT/DVD/etc.),
+ *       we use R as the left operand and IX (0..3) as the right
+ *       operand’s index (mapped to R0..R3). See MachineCore notes.
  * ==============================================================
  */
 public final class InstructionSet {
 
-    // Prevent instantiation
     private InstructionSet() {}
 
-    /* ==============================================================
-     * LOAD / STORE INSTRUCTIONS
-     * --------------------------------------------------------------
-     * These instructions move data between registers and memory.
-     * Each corresponds to a 6-bit opcode value.
-     * ==============================================================
-     */
+    // Core (Part 1)
+    public static final int HLT = 00;
+    public static final int LDR = 01;
+    public static final int STR = 02;
+    public static final int LDA = 03;
+    public static final int LDX = 041;
+    public static final int STX = 042; //added
 
-    public static final int LDR = 1;   // Load Register from Memory (opcode 000001b)
-    // Format: LDR r,ix,i,addr  → R[r] ← M[EA]
+    // Branch / Control
+    public static final int JZ  = 010;
+    public static final int JNE = 011;   // if R != 0  jump EA
+    public static final int JCC = 012;  // if CC bit set jump EA (bit chosen by R)
+    public static final int JMA = 013;  // PC <- EA
+    public static final int JSR = 014;  // R3 <- return ; PC <- EA
+    public static final int RFS = 015;  // R0 <- imm5 ; PC <- R3
+    public static final int SOB = 016;  // R <- R-1 ; if R!=0 jump EA
+    public static final int JGE = 017;  // if R >= 0 (signed) jump EA
 
-    public static final int STR = 2;   // Store Register to Memory (opcode 000010b)
-    // Format: STR r,ix,i,addr  → M[EA] ← R[r]
+    // Arithmetic / Immediate
+    public static final int AMR = 04;   // R <- R + M[EA]
+    public static final int SMR = 05;   // R <- R - M[EA]
+    public static final int AIR = 06;   // R <- R + imm5
+    public static final int SIR = 07;   // R <- R - imm5
 
-    public static final int LDA = 3;   // Load Register with Address (opcode 000011b)
-    // Format: LDA r,ix,i,addr  → R[r] ← EA
+    // Multiply / Divide
+    public static final int MLT = 070;  // R:R+1 <- R * Ry
+    public static final int DVD = 071;  // R <- R / Ry ; R+1 <- R % Ry
 
-    public static final int LDX = 33;  // Load Index Register (opcode 100001b)
-    // Format: LDX ix,addr[,i]  → X[ix] ← M[EA]
-    // Matches pattern: 102xxx (octal words in .ld file)
+    // Logical / Test / Reg-Reg
+    public static final int TRR = 072;  // set CC(EQUAL) if R == Ry
+    public static final int AND = 073;  // R <- R & Ry
+    public static final int ORR = 074;  // R <- R | Ry
+    public static final int NOT = 075;  // R <- ~R
 
-    /* ==============================================================
-     * BRANCH / CONTROL TRANSFER INSTRUCTIONS
-     * --------------------------------------------------------------
-     * Used for conditional or unconditional branching.
-     * ==============================================================
-     */
+    // Shifts / Rotates
+    public static final int SRC = 031;  // shift (logical/arithmetic, L/R, count)
+    public static final int RRC = 032;  // rotate (L/R, count)
 
-    public static final int JZ = 8;    // Jump if Zero (opcode 001000b)
-    // Format: JZ r,ix,i,addr
-    // If CC = Zero → PC ← EA
+    // I/O
+    public static final int IN  = 061;  // R <- input(dev)
+    public static final int OUT = 062;  // output(dev, R)
+//    public static final int CHK = 63;  // R <- device_ready(dev)
 
-    /* ==============================================================
-     * MISCELLANEOUS INSTRUCTIONS
-     * --------------------------------------------------------------
-     * Used for stopping or halting program execution.
-     * ==============================================================
-     */
-
-    public static final int HLT = 0;   // Halt execution (opcode 000000b)
-    // Terminates fetch-decode-execute cycle.
-    // Matches "HLT" directive in listing file.
-
-    /* ==============================================================
-     * DEBUG / UTILITY METHODS
-     * --------------------------------------------------------------
-     * Returns a readable mnemonic string for display or debugging.
-     * Used by MachineCore.java for console output and logs.
-     * ==============================================================
-     */
-    public static String nameOf(int opcode) {
-        return switch (opcode) {
-            case LDR -> "LDR";
-            case STR -> "STR";
-            case LDA -> "LDA";
-            case LDX -> "LDX";
-            case JZ  -> "JZ";
-            case HLT -> "HLT";
-            default  -> "OP" + opcode; // Fallback for undefined opcode
-        };
-    }
-
-    /* ==============================================================
-     * ADDITIONAL NOTES:
-     * --------------------------------------------------------------
-     * - All opcode values are decimal integers but directly
-     *   correspond to binary encodings used in machine words.
-     * - These constants are referenced by both the assembler and
-     *   the simulator to ensure bit-level consistency.
-     * - To add new instructions, assign a unique 6-bit opcode (0–63),
-     *   update the assembler’s opcode table, and add execution logic
-     *   in MachineCore.java under decodeAndExecute().
-     * ==============================================================
-     */
+//    // Trap / Floating / Vector (declared; only TRAP executed)
+//    public static final int TRAP = 24; // trap to vector
+//    public static final int LDFR = 16; // (declared)
+//    public static final int STFR = 41; // (declared)
+//    // FADD/FSUB/VADD/VSUB/CNVRT appear in the table but are out of scope.
 }

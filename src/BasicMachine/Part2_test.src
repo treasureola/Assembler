@@ -24,7 +24,7 @@ LOC 30
 
 # I/O TESTS
 IN 0,0          # Input a number into R0
-STR 0,1,8       # Store input to memory[8] (using IX1)
+STR 0,1,8       # Store input to memory[X1+8]. (Uses IX1)
 OUT 0,1         # Output the same value
 
 # LOAD / STORE / INDEX REGISTER TESTS
@@ -48,18 +48,18 @@ AND 3,0,6       # R3 = R3 AND memory[6]
 ORR 3,0,7       # R3 = R3 OR memory[7]
 STR 3,0,12      # Store R3 to memory[12]
 
-#SHIFT TESTS 
+#SHIFT TESTS
 LDR 1,0,12
 SRC 1,1,0,1     # Shift right R1 by 1
 RRC 1,1,1,0     # Rotate left R1 by 1
 STR 1,0,13
 
-# COMPARISON / CONTROL FLOW TESTS
+# COMPARISON / CONTROL FLOW TESTS (Addresses 50, 60, 70 octal > 31 decimal)
 LDR 2,0,11
 LDR 3,0,13
 TRR 2,3         # Compare R2 R3
-JZ 0,50         # Jump if equal
-JNE 0,60        # Jump if not equal
+JZ  0, X1, 50   # Jump if equal (Added IX1)
+JNE 0, X1, 60   # Jump if not equal (Added IX1)
 # SETCCE 1        # Set CC=1
 HLT 0           # Should not reach here if JNE taken
 
@@ -67,21 +67,21 @@ HLT 0           # Should not reach here if JNE taken
 LOC 50
 LDR 0,0,6
 OUT 0,1         # Output value for equality branch
-JNE 0,70        # Jump to end
+JNE 0, X1, 70   # Jump to end (Added IX1)
 
 LOC 60
 LDR 0,0,7
 OUT 0,1         # Output value for non-equal branch
 
-#CACHE TEST
+#CACHE TEST (Addresses 100, 200, 300, 400 octal > 31 decimal)
 
 LOC 70
-LDR 0,0,100     # likely miss, load to cache
-LDR 1,0,100     # hit
-LDR 2,0,200     # miss, new line
-LDR 3,0,100     # hit again
-LDR 0,0,300     # miss, causes FIFO replacement
-LDR 1,0,200     # may hit if still in cache
-LDR 2,0,400     # miss, test cache overflow
+LDR 0, X1, 100  # likely miss, load to cache (Added IX1)
+LDR 1, X1, 100  # hit (Added IX1)
+LDR 2, X1, 200  # miss, new line (Added IX1)
+LDR 3, X1, 100  # hit again (Added IX1)
+LDR 0, X1, 300  # miss, causes FIFO replacement (Added IX1)
+LDR 1, X1, 200  # may hit if still in cache (Added IX1)
+LDR 2, X1, 400  # miss, test cache overflow (Added IX1)
 OUT 0,1
 HLT 0

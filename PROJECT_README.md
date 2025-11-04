@@ -188,8 +188,8 @@ java -cp out FinalTestSuite   # Comprehensive tests
 java -cp out Assembler.Assembler < tests/test_cache_demo.src
 java -cp out BasicMachine.CPU_Module.MainSimulator
 
-# Check cache_trace.log for detailed cache behavior
-cat cache_trace.log
+# Check TestFilesExplanation.txt for detailed cache behavior
+cat TestFilesExplanation.txt
 ```
 
 ## Project Structure

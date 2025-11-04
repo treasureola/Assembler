@@ -74,11 +74,13 @@ public class Registers {
     /** Returns the full IXR array (for GUI or debugging). */
     public int[] getIXR() { return IXR; }
 
-    /** Returns the value of register R[r]. */
-    public int getGPRValue(int r) { return GPR[r]; }
+    public int getGPRValue(int r) {
+        return GPR[r] & 0xFFFF;   // always 16-bit clean
+    }
 
-    /** Sets R[r] = val (masked to 16 bits). */
-    public void setGPRValue(int r, int val) { GPR[r] = val & 0xFFFF; }
+    public void setGPRValue(int r, int value) {
+        GPR[r] = value & 0xFFFF;  // store only 16 bits
+    }
 
     /** Returns the value of index register X[x]. (0→X1, 1→X2, 2→X3) */
     public int getIXRValue(int x) { return IXR[x]; }

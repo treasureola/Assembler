@@ -207,7 +207,7 @@
                             <padding>
                                 <Insets top="8.0" right="8.0" bottom="8.0" left="8.0"/>
                             </padding>
-                            <TextField fx:id="consoleInput" HBox.hgrow="ALWAYS"/>
+                            <TextField fx:id="consoleInputField" HBox.hgrow="ALWAYS"/>
                             <Button text="Send" onAction="#onConsoleSend"/>
                         </HBox>
                     </content>

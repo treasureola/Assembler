@@ -1,7 +1,7 @@
 package tests;
 
 /* ==============================================================
- * TestRunner.java
+ * BasicMachine.TestRunner.java
  * --------------------------------------------------------------
  * Purpose:
  *   Centralized automated test runner for the Basic Machine project.

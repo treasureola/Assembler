@@ -52,7 +52,7 @@ public class MainSimulator {
              * This file must exist in the same directory from which
              * the simulator is launched.
              */
-            File loadFile = new File("load.ld");
+            File loadFile = new File("BasicMachine/load.ld");
 
             if (!loadFile.exists()) {
                 System.err.println("[ERROR] load.ld not found in current directory.");
@@ -86,7 +86,7 @@ public class MainSimulator {
              * Memory.getProgramStartAddress() finds the first non-zero
              * memory word, which is assumed to be the program’s entry point.
              */
-            int startAddr = mem.getProgramStartAddress();
+            int startAddr = loader.getProgramStartAddress();
             regs.setPC(startAddr);
             System.out.printf("[INFO] Program start address set to %06o%n", startAddr);
 
@@ -99,6 +99,8 @@ public class MainSimulator {
              *   - Executing supported instructions (LDR, STR, LDX, LDA, JZ, HLT)
              */
             MachineCore core = new MachineCore(mem, regs);
+            System.out.printf("[VERIFY] PC before run = %06o%n", regs.getPC());
+            core.run();
 
             /* ----------------------------------------------------------
              * STEP 6: Execute program.

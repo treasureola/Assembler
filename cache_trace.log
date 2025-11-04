@@ -1,7 +1,0 @@
-=== Cache Trace Started at 2025-10-29 00:00:21 ===
-Cache Configuration: Size=16 lines, Policy=FIFO, Type=Unified
-WRITE MISS | Addr=0144 | Data=010421 | Insert Line=0
-READ  HIT  | Addr=0144 | Data=010421 | Line=0
-READ  MISS | Addr=0310 | Data=000000 | Insert Line=1
-=== Cache Trace Ended at 2025-10-29 00:00:21 ===
-

@@ -16,7 +16,7 @@ src/IgnoreForNow/VectorUnit.java
 src/IgnoreForNow/FinalTestSuite.java
 src/IgnoreForNow/FloatingPointUnit.java
 src/Assembler/Assembler.java
-tests/TestRunner.java
+tests/BasicMachine.TestRunner.java
 tests/MemoryTest.java
 tests/SimulatorRunTest.java
 tests/IntegrationTest.java
