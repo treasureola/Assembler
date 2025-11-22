@@ -29,7 +29,7 @@ public class TestRunner {
         // PHASE 1 — Assemble .src programs
         // ==========================================================
         System.out.println("[PHASE 1] Running Assembler...");
-        String[] programs = {"Part0_Test.src", "Part2_test.src", "Program_1.src"};
+        String[] programs = {"Part0_Test.src", "Part2_test.src", "Program_1.src", "Program2_test.src"};
         for (String src : programs) {
             java.io.File f = new java.io.File(src);
             if (f.exists()) {
