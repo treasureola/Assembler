@@ -1,0 +1,7 @@
+* Program 2 – TRAP and CHK demo
+IN    R0, 0
+OUT   R0, 0
+CHK   R1, 0
+TRAP  0
+TRAP  1
+HLT
