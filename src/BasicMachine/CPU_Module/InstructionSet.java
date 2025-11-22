@@ -32,46 +32,43 @@ public final class InstructionSet {
     public static final int STR = 02;
     public static final int LDA = 03;
     public static final int LDX = 041;
-    public static final int STX = 042; //added
+    public static final int STX = 042;
 
     // Branch / Control
     public static final int JZ  = 010;
-    public static final int JNE = 011;   // if R != 0  jump EA
-    public static final int JCC = 012;  // if CC bit set jump EA (bit chosen by R)
-    public static final int JMA = 013;  // PC <- EA
-    public static final int JSR = 014;  // R3 <- return ; PC <- EA
-    public static final int RFS = 015;  // R0 <- imm5 ; PC <- R3
-    public static final int SOB = 016;  // R <- R-1 ; if R!=0 jump EA
-    public static final int JGE = 017;  // if R >= 0 (signed) jump EA
+    public static final int JNE = 011;
+    public static final int JCC = 012;
+    public static final int JMA = 013;
+    public static final int JSR = 014;
+    public static final int RFS = 015;
+    public static final int SOB = 016;
+    public static final int JGE = 017;
 
     // Arithmetic / Immediate
-    public static final int AMR = 04;   // R <- R + M[EA]
-    public static final int SMR = 05;   // R <- R - M[EA]
-    public static final int AIR = 06;   // R <- R + imm5
-    public static final int SIR = 07;   // R <- R - imm5
+    public static final int AMR = 04;
+    public static final int SMR = 05;
+    public static final int AIR = 06;
+    public static final int SIR = 07;
 
     // Multiply / Divide
-    public static final int MLT = 070;  // R:R+1 <- R * Ry
-    public static final int DVD = 071;  // R <- R / Ry ; R+1 <- R % Ry
+    public static final int MLT = 070;
+    public static final int DVD = 071;
 
     // Logical / Test / Reg-Reg
-    public static final int TRR = 072;  // set CC(EQUAL) if R == Ry
-    public static final int AND = 073;  // R <- R & Ry
-    public static final int ORR = 074;  // R <- R | Ry
-    public static final int NOT = 075;  // R <- ~R
+    public static final int TRR = 072;
+    public static final int AND = 073;
+    public static final int ORR = 074;
+    public static final int NOT = 075;
 
     // Shifts / Rotates
-    public static final int SRC = 031;  // shift (logical/arithmetic, L/R, count)
-    public static final int RRC = 032;  // rotate (L/R, count)
+    public static final int SRC = 031;
+    public static final int RRC = 032;
 
     // I/O
-    public static final int IN  = 061;  // R <- input(dev)
-    public static final int OUT = 062;  // output(dev, R)
-//    public static final int CHK = 63;  // R <- device_ready(dev)
+    public static final int IN  = 061;
+    public static final int OUT = 062;
+    public static final int CHK = 063;  // R <- device_ready(dev)
 
-//    // Trap / Floating / Vector (declared; only TRAP executed)
-//    public static final int TRAP = 24; // trap to vector
-//    public static final int LDFR = 16; // (declared)
-//    public static final int STFR = 41; // (declared)
-//    // FADD/FSUB/VADD/VSUB/CNVRT appear in the table but are out of scope.
+    // Trap
+    public static final int TRAP = 024; // trap to vector
 }
