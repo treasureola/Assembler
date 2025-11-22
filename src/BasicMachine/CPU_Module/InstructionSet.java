@@ -1,6 +1,27 @@
-// ✅ InstructionSet.java — Updated
 package BasicMachine.CPU_Module;
 
+/* ==============================================================
+ * InstructionSet.java
+ * --------------------------------------------------------------
+ * Defines all instruction opcodes recognized by the Basic Machine
+ * CPU. Each opcode corresponds exactly to the encoding scheme
+ * used by the assembler and matches the approved .ld output.
+ *
+ * Instruction Encoding (16 bits total):
+ * ------------------------------------
+ * | Bits | Field | Description                 |
+ * |------|-------|-----------------------------|
+ * |15-10 | opcode| Operation code (6 bits)     |
+ * | 9-8  | R     | General-purpose register ID |
+ * | 7-6  | IX    | Index register (0..3)       |
+ * |  5   | I     | 1=indirect, 0=direct       |
+ * | 4-0  | addr  | 5-bit address / immediate  |
+ *
+ * NOTE: For register–register instructions (TRR/MLT/DVD/etc.),
+ *       we use R as the left operand and IX (0..3) as the right
+ *       operand’s index (mapped to R0..R3). See MachineCore notes.
+ * ==============================================================
+ */
 public final class InstructionSet {
 
     private InstructionSet() {}
@@ -46,55 +67,8 @@ public final class InstructionSet {
     // I/O
     public static final int IN  = 061;
     public static final int OUT = 062;
-    public static final int CHK = 063;  // R <- device_ready(dev)
+    public static final int CHK = 063;  // R <- device ready (1) or not (0)
 
     // Trap
-    public static final int TRAP = 024; // trap to vector
+    public static final int TRAP = 024; // Trap to OS handler
 }
-
-
-// ✅ MachineCore.java additions
-// Place in decodeAndExecute() inside the switch block:
-/*
-case InstructionSet.CHK -> {
-    int dev = ir & 0xFF;
-    execCHK(r, dev);
-    printExec("CHK");
-}
-case InstructionSet.TRAP -> {
-    int trapCode = ir & 0xFF;
-    execTRAP(trapCode);
-    printExec("TRAP");
-}
-*/
-
-// Add methods inside MachineCore.java class:
-/*
-private void execCHK(int r, int devId) {
-    int ready = 1; // For simulation, assume device is always ready
-    regs.setGPRValue(r, ready);
-    printToPrinter(String.format("[CHK] R%d ← dev=%d ready=%d", r, devId, ready));
-}
-
-private void execTRAP(int trapCode) {
-    switch (trapCode) {
-        case 0x00 -> printToPrinter("[TRAP 0] Hello from the OS!");
-        case 0x01 -> {
-            halted = true;
-            printToPrinter("[TRAP 1] Halting via trap.");
-        }
-        default -> printToPrinter(String.format("[TRAP %02o] Unknown trap code.", trapCode));
-    }
-}
-*/
-
-// ✅ Program2_test.src
-/*
-* Program 2 – TRAP and CHK demo
-IN    R0, 0
-OUT   R0, 0
-CHK   R1, 0      ; Should return 1 if device is ready
-TRAP  0          ; Should print "Hello from the OS!"
-TRAP  1          ; Halts the program
-HLT
-*/
