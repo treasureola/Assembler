@@ -14,8 +14,8 @@ package BasicMachine.CPU_Module;
  * |15-10 | opcode| Operation code (6 bits)     |
  * | 9-8  | R     | General-purpose register ID |
  * | 7-6  | IX    | Index register (0..3)       |
- * |  5   | I     | 1=indirect, 0=direct       |
- * | 4-0  | addr  | 5-bit address / immediate  |
+ * |  5   | I     | 1=indirect, 0=direct        |
+ * | 4-0  | addr  | 5-bit address / immediate   |
  *
  * NOTE: For register–register instructions (TRR/MLT/DVD/etc.),
  *       we use R as the left operand and IX (0..3) as the right
