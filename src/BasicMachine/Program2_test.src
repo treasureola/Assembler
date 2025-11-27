@@ -57,7 +57,7 @@ PRINT_LOOP:
     LDR 2,0,0           # Word number = 0
     LDR 3,0,27          # Search word start
     
-SEARCH_LOOP:
+/* SEARCH_LOOP:
     LDR 4,0,0           # Load character from paragraph
     LDR 5,0,3           # Load character from search word
     TRR 4,5             # Compare characters
@@ -82,7 +82,29 @@ NEXT_CHAR:
     TRR 4,5             # Compare
     JZ  4,X1,NEXT_WORD  # If space, next word
     AIR 0,1             # Next character
-    JMA X1,SEARCH_LOOP  # Continue
+    JMA X1,SEARCH_LOOP  # Continue  */
+
+SEARCH_LOOP:
+    LDR 1,0,0
+    LDR 2,0,3
+    TRR 1,2
+    JNE 1,X1,NEXT_CHAR
+    AIR 3,1
+    LDR 2,0,3
+    JZ  2,0,WORD_FOUND
+    AIR 0,1
+    JMA X1,SEARCH_LOOP
+
+NEXT_CHAR:
+    LDR 1,0,0
+    LDR 2,1,40
+    TRR 1,2
+    JZ  1,0,NEXT_SENTENCE
+    LDR 2,1,41
+    TRR 1,2
+    JZ  1,0,NEXT_WORD
+    AIR 0,1
+    JMA X1,SEARCH_LOOP
     
 NEXT_WORD:
     AIR 2,1             # Increment word counter
