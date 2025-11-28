@@ -15,7 +15,12 @@ public class AutoRun {
             System.err.println("[ERROR] load.ld not found — assemble first!");
             return;
         }
+        
         loader.load(ldFile, memory);
+
+        int start = loader.getProgramStartAddress();
+        regs.setPC(start);
+        
         MachineCore cpu = new MachineCore(memory, regs);
         cpu.run();
     }
