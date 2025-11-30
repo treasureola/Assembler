@@ -39,7 +39,7 @@ public class SimulatorController {
     @FXML private TextField consoleInputField;
     private void appendNarrative(String msg) {
         // Use the same printer area for narrative logs
-        Platform.runLater(() -> printerArea.appendText("[NARRATIVE] " + msg + "\n"));
+//        Platform.runLater(() -> printerArea.appendText("[NARRATIVE] " + msg + "\n"));
     }
 
 

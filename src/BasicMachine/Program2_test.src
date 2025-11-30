@@ -20,169 +20,148 @@ START:
     LDR 1,0,0           # R1 = sentence counter = 0
     LDR 2,0,0           # R2 = word counter = 0
     LDR 3,0,27          # R3 = word buffer base (0400)
-    
+
     # STEP 1: Read 6 sentences from file using TRAP 0
     # CHK device 0 (file input) to check if ready
     CHK 0,0             # Check file device ready
-    JZ  0,X1,ERROR_FILE  # If not ready, jump to error
+    JZ  0,X1,ERROR_FILE # If not ready, jump to error
     TRAP 0              # Read file (sentences loaded at 0300)
-    
+
     # STEP 2: Print sentences to console
     # Reset paragraph pointer
     LDR 0,0,26          # R0 = paragraph start (0300)
     LDR 1,0,0           # R1 = sentence counter = 0
     LDR 4,0,6           # R4 = max sentences = 6
-    
+
 PRINT_LOOP:
     CHK 1,1             # Check printer device ready
     JZ  1,X1,PRINT_LOOP # Wait if not ready
-    LDR 2,0,0           # Load character from paragraph
+    LDR 2,0,0           # Load character from paragraph (M[R0])
     OUT 2,1             # Print character to device 1 (printer)
-    AIR 0,1             # Increment paragraph pointer
-    SOB 4,X1,PRINT_LOOP # Decrement counter, loop if not zero
-    
+    AIR 0,1             # Increment paragraph pointer R0++
+    SOB 4,X1,PRINT_LOOP # Decrement sentence/char counter, loop if not zero
+
     # STEP 3: Ask user for word using TRAP 1
     LDR 0,0,27          # R0 = word buffer address (0400)
     CHK 0,0             # Check input device ready
     JZ  0,X1,ERROR_INPUT # If not ready, jump to error
     TRAP 1              # Get user input word (stored at 0400)
-    
+
     # STEP 4: Search paragraph for the word
     # R0 = current position in paragraph
     # R1 = current sentence number
     # R2 = current word number in sentence
     # R3 = search word pointer
-    LDR 0,0,26          # Start of paragraph
+    LDR 0,0,26          # Start of paragraph (0300)
     LDR 1,0,0           # Sentence number = 0
     LDR 2,0,0           # Word number = 0
-    LDR 3,0,27          # Search word start
-    
-/* SEARCH_LOOP:
-    LDR 4,0,0           # Load character from paragraph
-    LDR 5,0,3           # Load character from search word
-    TRR 4,5             # Compare characters
-    JNE 4,X1,NEXT_CHAR  # If not equal, continue
-    # Characters match, check if word complete
-    AIR 3,1             # Increment search word pointer
-    LDR 5,0,3           # Load next char of search word
-    TRR 5,0             # Compare with null/space
-    JZ  5,X1,WORD_FOUND # If null, word found!
-    # Not end of word, continue matching
-    AIR 0,1             # Next paragraph char
-    JMA X1,SEARCH_LOOP  # Continue search
-    
-NEXT_CHAR:
-    # Check if end of sentence (period = 46)
-    LDR 4,0,0           # Reload current char
-    LDR 5,1,40          # Load ASCII period (46) from data location
-    TRR 4,5             # Compare
-    JZ  4,X1,NEXT_SENTENCE # If period, next sentence
-    # Check if space (word boundary = 32)
-    LDR 5,1,41          # Load ASCII space (32) from data location
-    TRR 4,5             # Compare
-    JZ  4,X1,NEXT_WORD  # If space, next word
-    AIR 0,1             # Next character
-    JMA X1,SEARCH_LOOP  # Continue  */
+    LDR 3,0,27          # Search word start (0400)
+
+    # --- NEW: set X1 to the high page (0240) that contains WORD_FOUND (0276) ---
+    LDR 0,0,24          # R0 = PAGE_WORD = 0240
+    LDX 1,0,R0          # X1 = R0 (X1 now holds 0240 for indexed branches)
 
 SEARCH_LOOP:
-    LDR 1,0,0
-    LDR 2,0,3
-    TRR 1,2
-    JNE 1,X1,NEXT_CHAR
-    AIR 3,1
-    LDR 2,0,3
-    JZ  2,0,WORD_FOUND
-    AIR 0,1
-    JMA X1,SEARCH_LOOP
+    LDR 1,0,0           # R1 = current paragraph char M[R0]
+    LDR 2,0,3           # R2 = current search-word char M[R3]
+    TRR 1,2             # Compare chars
+    JNE 1,X1,NEXT_CHAR  # If not equal, go handle mismatch
+    AIR 3,1             # Match so far ⇒ advance word pointer
+    LDR 2,0,3           # Load next search-word char
+    JZ  2,X1,WORD_FOUND # If this is 0 (terminator), whole word matched
+    AIR 0,1             # Otherwise, advance paragraph pointer
+    JMA X1,SEARCH_LOOP  # Continue comparing
 
 NEXT_CHAR:
-    LDR 1,0,0
-    LDR 2,1,40
+    LDR 1,0,0           # Reload current paragraph char
+    LDR 2,1,40          # R2 = ASCII_PERIOD (via IX=1 if you use it later)
     TRR 1,2
-    JZ  1,0,NEXT_SENTENCE
-    LDR 2,1,41
+    JZ  1,0,NEXT_SENTENCE # If '.', go to next sentence
+    LDR 2,1,41          # R2 = ASCII_SPACE
     TRR 1,2
-    JZ  1,0,NEXT_WORD
-    AIR 0,1
+    JZ  1,0,NEXT_WORD   # If ' ', go to next word
+    AIR 0,1             # Else just move to next char in paragraph
     JMA X1,SEARCH_LOOP
-    
+
 NEXT_WORD:
     AIR 2,1             # Increment word counter
-    AIR 0,1             # Next character
-    LDR 3,0,27          # Reset search word pointer
-    JMA X1,SEARCH_LOOP  # Continue
-    
+    AIR 0,1             # Next character (move past the space)
+    LDR 3,0,27          # Reset search word pointer to WORD_BUF_BASE
+    JMA X1,SEARCH_LOOP
+
 NEXT_SENTENCE:
     AIR 1,1             # Increment sentence number
-    LDR 2,0,0           # Reset word counter
-    AIR 0,1             # Skip period
+    LDR 2,0,0           # Reset word counter to 0
+    AIR 0,1             # Skip the period
     LDR 3,0,27          # Reset search word pointer
     LDR 4,0,6           # Max sentences = 6
-    TRR 1,4             # Compare sentence number with max
-    JGE 1,X1,NOT_FOUND  # If >= 6, not found
-    JMA X1,SEARCH_LOOP  # Continue
-    
+    TRR 1,4
+    JGE 1,X1,NOT_FOUND  # If sentence >= 6, word not found
+    JMA X1,SEARCH_LOOP  # Otherwise continue search
+
 WORD_FOUND:
     # Word found! Print results
     # Print "Word found: "
-    LDR 0,0,28          # Point to "Word found: " string
+    LDR 0,0,28          # R0 = MSG_FOUND pointer location
 PRINT_RESULT:
-    LDR 4,0,0          # Load character
+    LDR 4,0,0           # Load character from "Word found: "
     OUT 4,1             # Print to device 1
     AIR 0,1             # Next char
     LDR 4,0,0           # Check for null terminator
-    JNE 4,X1,PRINT_RESULT # Continue printing
-    
-    # Print the word
-    LDR 0,0,27          # Point to search word
+    JNE 4,X1,PRINT_RESULT
+
+    # Print the word itself
+    LDR 0,0,27          # R0 = search word buffer
 PRINT_WORD:
-    LDR 4,0,0           # Load character
-    OUT 4,1             # Print
-    AIR 0,1             # Next char
-    LDR 4,0,0           # Check for null
-    JNE 4,X1,PRINT_WORD # Continue
-    
-    # Print sentence number
-    LDR 0,0,29          # "Sentence: " string
+    LDR 4,0,0
+    OUT 4,1
+    AIR 0,1
+    LDR 4,0,0
+    JNE 4,X1,PRINT_WORD
+
+    # Print sentence label "Sentence: "
+    LDR 0,0,29          # Pointer to "Sentence: "
 PRINT_SENT:
     LDR 4,0,0
     OUT 4,1
     AIR 0,1
     LDR 4,0,0
     JNE 4,X1,PRINT_SENT
+
     # Convert sentence number to ASCII and print
-    AIR 1,48            # Convert to ASCII digit
+    AIR 1,48            # R1 += '0'
     OUT 1,1             # Print sentence number
-    
-    # Print word number
-    LDR 0,0,30          # "Word: " string
+
+    # Print word label "Word: "
+    LDR 0,0,30          # Pointer to "Word: "
 PRINT_WNUM:
     LDR 4,0,0
     OUT 4,1
     AIR 0,1
     LDR 4,0,0
     JNE 4,X1,PRINT_WNUM
+
     # Convert word number to ASCII and print
-    AIR 2,48            # Convert to ASCII digit
+    AIR 2,48            # R2 += '0'
     OUT 2,1             # Print word number
-    
+
     JMA X1,DONE         # Jump to end
-    
+
 NOT_FOUND:
     # Print "Word not found"
-    LDR 0,0,31          # "Word not found" string
+    LDR 0,0,31          # Pointer to "Word not found"
 PRINT_NOTFOUND:
     LDR 4,0,0
     OUT 4,1
     AIR 0,1
     LDR 4,0,0
     JNE 4,X1,PRINT_NOTFOUND
-    
+
 DONE:
     HLT
 
 ERROR_FILE:
-    LDR 0,1,32          # "File read error" string
+    LDR 0,1,32          # "File read error" string pointer
 PRINT_ERROR:
     LDR 4,0,0
     OUT 4,1
@@ -192,111 +171,115 @@ PRINT_ERROR:
     HLT
 
 ERROR_INPUT:
-    LDR 0,1,33          # "Input error" string
+    LDR 0,1,33          # "Input error" string pointer
     JMA X1,PRINT_ERROR
 
 # ==============================================================
 # DATA SECTION
 # ==============================================================
 
-LOC 26
-PAR_BASE:       DATA 0300    # Paragraph base address
-WORD_BUF_BASE:  DATA 0400    # Word buffer base address
-MSG_FOUND:      DATA 34      # "Word found: " string address
-MSG_SENT:       DATA 35      # "Sentence: " string address
-MSG_WORD:       DATA 36      # "Word: " string address
-MSG_NOTFOUND:   DATA 37      # "Word not found" string address
-MSG_FILEERR:    DATA 38      # "File read error" string address
-MSG_INPUTERR:   DATA 39      # "Input error" string address
-ASCII_PERIOD:   DATA 46      # ASCII period '.'
-ASCII_SPACE:    DATA 32      # ASCII space ' '
+# --- NEW: high-page constant for WORD_FOUND (0276 → page 0240) ---
+LOC 024
+PAGE_WORD:     DATA 0240    # High page used by WORD_FOUND / NOT_FOUND branches
+
+LOC 026
+PAR_BASE:       DATA 0300   # Paragraph base address
+WORD_BUF_BASE:  DATA 0400   # Word buffer base address
+MSG_FOUND:      DATA 034    # "Word found: " string address
+MSG_SENT:       DATA 035    # "Sentence: " string address
+MSG_WORD:       DATA 036    # "Word: " string address
+MSG_NOTFOUND:   DATA 037    # "Word not found" string address
+MSG_FILEERR:    DATA 038    # "File read error" string address
+MSG_INPUTERR:   DATA 039    # "Input error" string address
+ASCII_PERIOD:   DATA 046    # ASCII period '.'
+ASCII_SPACE:    DATA 032    # ASCII space ' '
 
 # String storage area
-LOC 34
-DATA 87         # 'W'
-DATA 111        # 'o'
-DATA 114        # 'r'
-DATA 100        # 'd'
-DATA 32         # ' '
-DATA 102        # 'f'
-DATA 111        # 'o'
-DATA 117        # 'u'
-DATA 110        # 'n'
-DATA 100        # 'd'
-DATA 58         # ':'
-DATA 32         # ' '
-DATA 0          # null terminator
+LOC 034
+DATA 087         # 'W'
+DATA 111         # 'o'
+DATA 114         # 'r'
+DATA 100         # 'd'
+DATA 032         # ' '
+DATA 102         # 'f'
+DATA 111         # 'o'
+DATA 117         # 'u'
+DATA 110         # 'n'
+DATA 100         # 'd'
+DATA 058         # ':'
+DATA 032         # ' '
+DATA 000         # null terminator
 
-LOC 35
-DATA 83         # 'S'
-DATA 101        # 'e'
-DATA 110        # 'n'
-DATA 116        # 't'
-DATA 101        # 'e'
-DATA 110        # 'n'
-DATA 99         # 'c'
-DATA 101        # 'e'
-DATA 58         # ':'
-DATA 32         # ' '
-DATA 0          # null
+LOC 035
+DATA 083         # 'S'
+DATA 101         # 'e'
+DATA 110         # 'n'
+DATA 116         # 't'
+DATA 101         # 'e'
+DATA 110         # 'n'
+DATA 099         # 'c'
+DATA 101         # 'e'
+DATA 058         # ':'
+DATA 032         # ' '
+DATA 000         # null
 
-LOC 36
-DATA 87         # 'W'
-DATA 111        # 'o'
-DATA 114        # 'r'
-DATA 100        # 'd'
-DATA 58         # ':'
-DATA 32         # ' '
-DATA 0          # null
+LOC 036
+DATA 087         # 'W'
+DATA 111         # 'o'
+DATA 114         # 'r'
+DATA 100         # 'd'
+DATA 058         # ':'
+DATA 032         # ' '
+DATA 000         # null
 
-LOC 37
-DATA 87         # 'W'
-DATA 111        # 'o'
-DATA 114        # 'r'
-DATA 100        # 'd'
-DATA 32         # ' '
-DATA 110        # 'n'
-DATA 111        # 'o'
-DATA 116        # 't'
-DATA 32         # ' '
-DATA 102        # 'f'
-DATA 111        # 'o'
-DATA 117        # 'u'
-DATA 110        # 'n'
-DATA 100        # 'd'
-DATA 0          # null
+LOC 037
+DATA 087         # 'W'
+DATA 111         # 'o'
+DATA 114         # 'r'
+DATA 100         # 'd'
+DATA 032         # ' '
+DATA 110         # 'n'
+DATA 111         # 'o'
+DATA 116         # 't'
+DATA 032         # ' '
+DATA 102         # 'f'
+DATA 111         # 'o'
+DATA 117         # 'u'
+DATA 110         # 'n'
+DATA 100         # 'd'
+DATA 000         # null
 
-LOC 38
-DATA 70         # 'F'
-DATA 105        # 'i'
-DATA 108        # 'l'
-DATA 101        # 'e'
-DATA 32         # ' '
-DATA 114        # 'r'
-DATA 101        # 'e'
-DATA 97         # 'a'
-DATA 100        # 'd'
-DATA 32         # ' '
-DATA 101        # 'e'
-DATA 114        # 'r'
-DATA 114        # 'r'
-DATA 111        # 'o'
-DATA 114        # 'r'
-DATA 0          # null
+LOC 038
+DATA 070         # 'F'
+DATA 105         # 'i'
+DATA 108         # 'l'
+DATA 101         # 'e'
+DATA 032         # ' '
+DATA 114         # 'r'
+DATA 101         # 'e'
+DATA 097         # 'a'
+DATA 100         # 'd'
+DATA 032         # ' '
+DATA 101         # 'e'
+DATA 114         # 'r'
+DATA 114         # 'r'
+DATA 111         # 'o'
+DATA 114         # 'r'
+DATA 000         # null
 
-LOC 39
-DATA 73         # 'I'
-DATA 110        # 'n'
-DATA 112        # 'p'
-DATA 117        # 'u'
-DATA 116        # 't'
-DATA 32         # ' '
-DATA 101        # 'e'
-DATA 114        # 'r'
-DATA 114        # 'r'
-DATA 111        # 'o'
-DATA 114        # 'r'
-DATA 0          # null
+LOC 039
+DATA 073         # 'I'
+DATA 110         # 'n'
+DATA 112         # 'p'
+DATA 117         # 'u'
+DATA 116         # 't'
+DATA 032         # ' '
+DATA 101         # 'e'
+DATA 114         # 'r'
+DATA 114         # 'r'
+DATA 111         # 'o'
+DATA 114         # 'r'
+DATA 000         # null
 
 # Paragraph storage (6 sentences will be loaded here by TRAP 0)
 LOC 0300

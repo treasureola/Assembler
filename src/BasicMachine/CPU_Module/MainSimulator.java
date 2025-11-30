@@ -52,13 +52,51 @@ public class MainSimulator {
              * This file must exist in the same directory from which
              * the simulator is launched.
              */
-            File loadFile = new File("BasicMachine/load.ld");
+            /* ----------------------------------------------------------
+             * STEP 1: Select the program file to load.
+             * ----------------------------------------------------------
+             * The assembler (Part 0) now writes load.ld into the project
+             * root folder (the one that contains src/, out/, run_all.sh).
+             *
+             * When run_all.sh executes, the JVM's CWD is:
+             *     .../Assembler/out
+             * so we must step up one directory to find load.ld.
+             */
+            File cwd = new File(System.getProperty("user.dir"));
+            System.out.println("[DEBUG] CWD (MainSimulator): " + cwd.getAbsolutePath());
+
+            File projectRoot = cwd;
+// If running from the compiled out/ folder, parent is the project root.
+            if ("out".equalsIgnoreCase(cwd.getName())) {
+                projectRoot = cwd.getParentFile();
+            }
+            if (projectRoot == null) {
+                projectRoot = cwd;  // fallback
+            }
+
+// Preferred location: projectRoot/load.ld
+            File loadFile = new File(projectRoot, "load.ld");
+
+// Optional fallback: projectRoot/BasicMachine/load.ld
+            if (!loadFile.exists()) {
+                loadFile = new File(projectRoot, "BasicMachine/load.ld");
+            }
+
+// Last-resort fallback: ./load.ld relative to CWD
+            if (!loadFile.exists()) {
+                loadFile = new File("load.ld");
+            }
 
             if (!loadFile.exists()) {
-                System.err.println("[ERROR] load.ld not found in current directory.");
+                System.err.println("[ERROR] load.ld not found.");
+                System.err.println("Checked:");
+                System.err.println("  " + new File(projectRoot, "load.ld").getAbsolutePath());
+                System.err.println("  " + new File(projectRoot, "BasicMachine/load.ld").getAbsolutePath());
+                System.err.println("  " + new File("load.ld").getAbsolutePath());
                 System.err.println("Please assemble your source program first using Assembler.java.");
                 return;
             }
+
 
             /* ----------------------------------------------------------
              * STEP 2: Initialize system components.

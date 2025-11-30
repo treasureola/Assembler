@@ -17,15 +17,17 @@ import java.util.*;
  *   • Encodes instructions into 16-bit binary words
  *   • Writes listing (.lst) and load (.ld) files
  *
- * Outputs:
- *   • BasicMachine/output.lst  – Human-readable listing file
- *   • BasicMachine/load.ld     – Octal machine code file
+ * Outputs (for this project setup):
+ *   • <PROJECT_ROOT>/output.lst  – Human-readable listing file
+ *   • <PROJECT_ROOT>/load.ld     – Octal machine code file
  *
- * Key Valid Console Prints (for grading visibility):
- *   • Assembler start and source file confirmation
- *   • PASS 1: Symbol table summary
- *   • PASS 2: Instruction encoding progress
- *   • Final output summary
+ * Where <PROJECT_ROOT> is the directory that contains:
+ *   - run_all.sh
+ *   - src/
+ *   - out/
+ *
+ * This is derived from the source file path:
+ *   .../Assembler/src/BasicMachine/Program2_test.src
  * ==============================================================
  */
 public class Assembler {
@@ -34,24 +36,37 @@ public class Assembler {
     private static boolean errorFlag = false;// Prevents file generation on critical errors
 
     /* =========================== MAIN =========================== */
+    /* =========================== MAIN =========================== */
     public static void main(String[] args) throws IOException {
         System.out.println("Assembler running...");
         loc = 0;
         programStart = -1;
         errorFlag = false;
 
-        // Locate the source file in common directories
-        String sourceFile = args.length > 0 ? args[0] : "Program_1.src";
+        // ----------------------------------------------
+        // 1) Locate source file
+        //    Default: Program2_test.src in src/BasicMachine
+        // ----------------------------------------------
+        String sourceFile = args.length > 0
+                ? args[0]
+                : "src/BasicMachine/Program2_test.src";
+
         File file = new File(sourceFile);
-        if (!file.exists()) file = new File("BasicMachine/Program_1.src");
-        if (!file.exists()) file = new File("src/BasicMachine/Program_1.src");
+
+        if (!file.exists()) file = new File("src/BasicMachine/Program2_test.src");
+        if (!file.exists()) file = new File("BasicMachine/Program2_test.src");
+        if (!file.exists()) file = new File("Program2_test.src");
 
         if (!file.exists()) {
-            System.err.println("Error: Program_1.src not found.");
-            System.err.println("Checked paths: ./Program_1.src, BasicMachine/Program_1.src, src/BasicMachine/Program_1.src");
+            System.err.println("Error: source file not found: " + sourceFile);
+            System.err.println("Checked paths:");
+            System.err.println("  ./Program2_test.src");
+            System.err.println("  BasicMachine/Program2_test.src");
+            System.err.println("  src/BasicMachine/Program2_test.src");
             return;
         }
 
+        file = file.getAbsoluteFile();
         System.out.println("[INFO] Source file located: " + file.getAbsolutePath());
 
         // Read source lines
@@ -73,32 +88,47 @@ public class Assembler {
         // --- Pass 2: Instruction encoding ---
         pass2(program);
 
-        // Stop if critical errors occurred
-        if (errorFlag) {
-            System.err.println("\nAssembly halted: Critical errors detected. Output files not generated.");
-            return;
-        }
+        // NOTE: We do NOT early-return on errorFlag anymore.
+        // Errors will be printed, but we still emit load.ld/output.lst.
 
         // Determine starting address
-        if (symbolTable.containsKey("START")) programStart = symbolTable.get("START");
-        else if (programStart == -1) programStart = 0;
+        if (symbolTable.containsKey("START")) {
+            programStart = symbolTable.get("START");
+        } else if (programStart == -1) {
+            programStart = 0;
+        }
 
         System.out.printf("[INFO] Program start address (octal): %06o%n", programStart);
 
-        // Determine output directory
-        File baseDir = new File(System.getProperty("user.dir"));
-        File outputDir;
-        if (baseDir.getName().equalsIgnoreCase("src"))
-            outputDir = new File(baseDir, "BasicMachine");
-        else if (new File(baseDir, "src/BasicMachine").exists())
-            outputDir = new File(baseDir, "src/BasicMachine");
-        else
-            outputDir = new File(baseDir, "BasicMachine");
+        // =============================================
+        // Decide where to write output files
+        // =============================================
+        // CWD when run_all.sh calls us is:
+        //   /Users/.../Assembler/out
+        // We want the *project folder*:
+        //   /Users/.../Assembler
+        // i.e., parent of "out".
+        File cwd = new File(System.getProperty("user.dir"));
+        System.out.println("[DEBUG] CWD: " + cwd.getAbsolutePath());
 
-        if (!outputDir.exists()) outputDir.mkdirs();
+        File projectRoot = cwd;
 
-        File lstFile = new File(outputDir, "output.lst");
-        File loadFile = new File(outputDir, "load.ld");
+        // If we're running from the compiled out/ folder,
+        // step one level up to the project folder.
+        if ("out".equalsIgnoreCase(cwd.getName())) {
+            projectRoot = cwd.getParentFile();
+        }
+
+        // Fallback: if something went weird, just use CWD.
+        if (projectRoot == null) {
+            projectRoot = cwd;
+        }
+
+        System.out.println("[DEBUG] Project root for outputs: " + projectRoot.getAbsolutePath());
+
+        // Write files *directly* into the project folder
+        File lstFile  = new File(projectRoot, "output.lst");
+        File loadFile = new File(projectRoot, "load.ld");
 
         generateListing(lstFile.getAbsolutePath());
         generateLoadFile(loadFile.getAbsolutePath());
@@ -106,6 +136,7 @@ public class Assembler {
         System.out.println("[✓] Assembly complete.");
         System.out.println("→ Listing: " + lstFile.getAbsolutePath());
         System.out.println("→ Load:    " + loadFile.getAbsolutePath());
+
     }
 
     /* ======================== OPCODE TABLE ======================== */
@@ -140,6 +171,8 @@ public class Assembler {
         opcodeTable.put("RRC", Integer.parseInt("32", 8));
         opcodeTable.put("IN",  Integer.parseInt("61", 8));
         opcodeTable.put("OUT", Integer.parseInt("62", 8));
+        opcodeTable.put("CHK", Integer.parseInt("63", 8)); // device check
+        opcodeTable.put("TRAP",Integer.parseInt("24", 8)); // trap
     }
 
     /* ======================== DATA STRUCTURES ======================== */
@@ -235,7 +268,7 @@ public class Assembler {
             loc++;
         }
 
-        // Symbol table output for grader visibility
+        // Symbol table output for visibility
         System.out.println("=== PASS 1 COMPLETE: SYMBOL TABLE ===");
         for (var e : symbolTable.entrySet())
             System.out.printf("%-15s -> %06o%n", e.getKey(), e.getValue());
@@ -270,8 +303,7 @@ public class Assembler {
             String instr = tokens[0].toUpperCase();
             System.out.printf("[ENCODING] LOC %04o  →  %s%n", loc, instr);
 
-            // 4) LOC / DATA
-            // LOC directive
+            // LOC / ORG directives
             if (instr.equalsIgnoreCase("LOC") || instr.equalsIgnoreCase("ORG")) {
                 if (tokens.length > 1) {
                     Integer v = parseNumber(tokens[1]);
@@ -279,6 +311,7 @@ public class Assembler {
                 }
                 continue; // directive, no emission
             }
+            // DATA/DEC/HEX directives
             else if (instr.equalsIgnoreCase("DATA") || instr.equalsIgnoreCase("DEC") || instr.equalsIgnoreCase("HEX")) {
                 if (tokens.length < 2) {
                     System.err.printf("[ASM ERROR] LOC %04o: Directive %s requires a value.%n", loc, instr);
@@ -301,7 +334,6 @@ public class Assembler {
                     }
                 }
 
-                // HEX uses base 16 explicitly (overwrites previous parse if not null)
                 if (instr.equalsIgnoreCase("HEX")) {
                     try {
                         num = Integer.parseInt(tokens[1], 16);
@@ -318,14 +350,14 @@ public class Assembler {
                 continue;
             }
 
-
-            // 5) Opcode lookup
+            // Opcode lookup
             Integer opcodeVal = opcodeTable.get(instr);
             if (opcodeVal == null) opcodeVal = 0;
             String opcode6 = toBinary(opcodeVal, 6);
 
             String bin;
 
+            // -------- LDX/STX (11-bit addressing) --------
             if (instr.equals("LDX") || instr.equals("STX")) {
                 String R = "00";
                 String IX = "00";
@@ -339,11 +371,8 @@ public class Assembler {
                 int rVal = 0;
                 int ixVal = Integer.parseInt(IX, 2);
                 int iVal = Integer.parseInt(I, 2);
-
-                // ✅ use full 11-bit address field (no truncation)
                 int addrField = addr & 0x7FF;
 
-                // ✅ Correct 16-bit word packing for LDX/STX (11-bit EA)
                 int word = (opcodeVal << 10) | (rVal << 8) | (ixVal << 6) | (iVal << 5) | addrField;
 
                 bin = toBinary(word, 16);
@@ -356,6 +385,7 @@ public class Assembler {
                 continue;
             }
 
+            // HLT
             else if (instr.equals("HLT")) {
                 bin = opcode6 + "0000000000";
                 bin = String.format("%-16s", bin).replace(' ', '0');
@@ -363,10 +393,11 @@ public class Assembler {
                 sourceMap.put(loc, original);
                 loc++;
                 continue;
-            } else if (Set.of("MLT","DVD","TRR","AND","ORR","NOT").contains(instr)) {
+            }
+            // Register-Register ops: MLT, DVD, TRR, AND, ORR, NOT
+            else if (Set.of("MLT","DVD","TRR","AND","ORR","NOT").contains(instr)) {
                 String Rx = (tokens.length > 1) ? regToBin(tokens[1]) : "00";
                 String Ry = (tokens.length > 2) ? regToBin(tokens[2]) : "00";
-                // Format: Opcode (6) | Rx (2) | Ry (2) | Unused (6)
                 bin = opcode6 + Rx + Ry + "000000";
                 bin = String.format("%-16s", bin).replace(' ', '0');
 
@@ -374,7 +405,9 @@ public class Assembler {
                 sourceMap.put(loc, original);
                 loc++;
                 continue;
-            }else if (Set.of("SRC", "RRC").contains(instr)) {
+            }
+            // Shift / Rotate: SRC, RRC
+            else if (Set.of("SRC", "RRC").contains(instr)) {
                 String Rr = tokens.length > 1 ? regToBin(tokens[1]) : "00";
                 String AL = (tokens.length > 2 && tokens[2].equals("1")) ? "1" : "0"; // 1 = logical
                 String LR = (tokens.length > 3 && tokens[3].equals("1")) ? "1" : "0"; // 1 = right
@@ -390,7 +423,6 @@ public class Assembler {
                     }
                 }
 
-                // Correct total: 6 (opcode) + 2 (R) + 1 (A/L) + 1 (L/R) + 4 (count) + 2 (unused) = 16 bits
                 bin = opcode6 + Rr + AL + LR + count + "00";
                 bin = String.format("%-16s", bin).replace(' ', '0');
 
@@ -398,40 +430,57 @@ public class Assembler {
                 sourceMap.put(loc, original);
                 loc++;
                 continue;
-            } else if (Set.of("IN","OUT").contains(instr)) {
-                // 16-bit layout: opcode(6) | R(2) | device(8)
+            }
+            // TRAP: opcode(6) | 00 | trapVector(8)
+            else if (instr.equals("TRAP")) {
+                String vector8 = "00000000";
+
+                if (tokens.length > 1) {
+                    Integer v = parseNumber(tokens[1]);
+                    if (v != null) vector8 = toBinary(v, 8);
+                }
+
+                bin = opcode6 + "00" + vector8;
+                memory.put(loc, bin);
+                sourceMap.put(loc, original);
+                loc++;
+                continue;
+            }
+            // IN / OUT / CHK: opcode(6) | R(2) | device(8)
+            else if (Set.of("IN","OUT","CHK").contains(instr)) {
                 String R = "00";
                 String dev8 = "00000000";
 
                 if (tokens.length > 1) {
-                    R = regToBin(tokens[1]);         // "0".."3" -> 2 bits
+                    R = regToBin(tokens[1]);
                 }
                 if (tokens.length > 2) {
                     Integer dev = parseNumber(tokens[2]);
                     if (dev != null) dev8 = toBinary(dev, 8);
                 }
 
-                bin = opcode6 + R + dev8;     // total = 6 + 2 + 8 = 16
+                bin = opcode6 + R + dev8;
                 memory.put(loc, bin);
                 sourceMap.put(loc, original);
                 loc++;
                 continue;
-            } else if (Set.of("AIR","SIR").contains(instr)) {
-                // 16-bit layout: opcode(6) | R(2) | Imm(8)
+            }
+            // AIR / SIR: opcode(6) | R(2) | Imm(8)
+            else if (Set.of("AIR","SIR").contains(instr)) {
                 String R = "00";
                 String imm8 = "00000000";
 
-                // This explicitly forces the check for 2 operands (R, Imm)
                 if (tokens.length - 1 != 2) {
-                    System.err.printf("[ASM ERROR] LOC %04o, %s: Invalid operands. Expected (R, Imm). (Found %d operands)%n", loc, instr, tokens.length - 1);
+                    System.err.printf("[ASM ERROR] LOC %04o, %s: Invalid operands. Expected (R, Imm). (Found %d operands)%n",
+                            loc, instr, tokens.length - 1);
                     errorFlag = true;
                 } else {
                     R = regToBin(tokens[1]);
                     Integer imm = parseNumber(tokens[2]);
                     if (imm != null) {
-                        // Check 8-bit signed range (-128 to 127) for the immediate value
                         if (imm < -128 || imm > 127) {
-                            System.err.printf("[ASM WARNING] LOC %04o, %s: Immediate value (%d) exceeds 8-bit signed range (-128 to 127). Value will be truncated.%n", loc, instr, imm);
+                            System.err.printf("[ASM WARNING] LOC %04o, %s: Immediate value (%d) exceeds 8-bit signed range (-128 to 127). Value will be truncated.%n",
+                                    loc, instr, imm);
                         }
                         imm8 = toBinary(imm, 8);
                     } else {
@@ -440,134 +489,106 @@ public class Assembler {
                     }
                 }
 
-                bin = opcode6 + R + imm8;     // total = 6 + 2 + 8 = 16
+                bin = opcode6 + R + imm8;
                 memory.put(loc, bin);
                 sourceMap.put(loc, original);
                 loc++;
                 continue;
-            }  else if (Set.of("LDR","STR","LDA","JZ","JNE","JCC","JMA","JSR","RFS","JGE",
+            }
+            // Memory reference instructions
+            else if (Set.of("LDR","STR","LDA","JZ","JNE","JCC","JMA","JSR","RFS","JGE",
                     "AMR","SMR","SOB").contains(instr)) {
 
-                // Operands are all tokens *after* the instruction (tokens[0])
                 int operandLength = tokens.length - 1;
 
-                // Check for trailing ",1" (indirect flag)
+                // Check trailing ",1" (indirect bit)
                 boolean ind = (operandLength > 0 && tokens[tokens.length - 1].equals("1"));
                 String I = ind ? "1" : "0";
 
-                // Count of required operands, excluding the optional indirect bit
                 int requiredOperands = operandLength - (ind ? 1 : 0);
 
                 String R = "00";
                 String IX = "00";
                 int addr = 0;
 
-                // --- Operand Parsing (Unified Logic on Operands) ---
                 if (Set.of("JMA","JSR","RFS").contains(instr)) {
-                    // Expected Operands: 1 (Address) or 2 (IX, Address)
-                    if (requiredOperands == 1) { // JMA Address [,I]
+                    if (requiredOperands == 1) {
                         addr = resolve(tokens[1]);
-                    } else if (requiredOperands == 2) { // JMA IX, Address [,I]
+                    } else if (requiredOperands == 2) {
                         IX = ixToBin(tokens[1]);
                         addr = resolve(tokens[2]);
                     } else {
-                        System.err.printf("[ASM ERROR] LOC %04o, %s: Invalid operands. Expected (Address) or (IX, Address). (Found %d operands)%n", loc, instr, requiredOperands);
+                        System.err.printf(
+                                "[ASM ERROR] LOC %04o, %s: Invalid operands. Expected (Address) or (IX, Address). (Found %d operands)%n",
+                                loc, instr, requiredOperands);
                         errorFlag = true;
                     }
-
-                } else if (Set.of("AIR","SIR").contains(instr)) {
-                    // Expected Operands: 2 (R, Imm)
+                } else {
+                    // R-based ops
                     if (requiredOperands == 2) {
                         R = regToBin(tokens[1]);
                         addr = resolve(tokens[2]);
-                    } else {
-                        System.err.printf("[ASM ERROR] LOC %04o, %s: Invalid operands. Expected (R, Imm). (Found %d operands)%n", loc, instr, requiredOperands);
-                        errorFlag = true;
-                    }
-
-                } else {
-                    // All other R-based ops (LDR, STR, AMR, SMR, JZ, JNE, SOB, etc.)
-                    // Expected Operands: 2 (R, Address) or 3 (R, IX, Address)
-
-                    if (requiredOperands == 2) { // R, Address [,I]
-                        R = regToBin(tokens[1]);
-                        addr = resolve(tokens[2]);
-                    } else if (requiredOperands == 3) { // R, IX, Address [,I]
+                    } else if (requiredOperands == 3) {
                         R = regToBin(tokens[1]);
                         IX = ixToBin(tokens[2]);
                         addr = resolve(tokens[3]);
                     } else {
-                        System.err.printf("[ASM ERROR] LOC %04o, %s: Too few or too many operands. Expected 2 (R, Address) or 3 (R, IX, Address). (Found %d operands)%n", loc, instr, requiredOperands);
+                        System.err.printf(
+                                "[ASM ERROR] LOC %04o, %s: Too few or too many operands. Expected 2 (R, Address) or 3 (R, IX, Address). (Found %d operands)%n",
+                                loc, instr, requiredOperands);
                         errorFlag = true;
                     }
                 }
+
                 boolean isImmediate = Set.of("AIR", "SIR").contains(instr);
                 boolean isIndexed = !IX.equals("00") || I.equals("1");
                 if (addr > 31 && !isImmediate) {
-                    if (isIndexed) {
-                    } else {
-                        System.err.printf("[ASM ERROR] LOC %04o, %s: Address (%d) exceeds 5-bit limit (31) and no Index Register (IX) is used. Indexing is required.%n", loc, instr, addr);
+                    if (!isIndexed) {
+                        System.err.printf(
+                                "[ASM ERROR] LOC %04o, %s: Address (%d) exceeds 5-bit limit (31) and no Index Register (IX) is used. Indexing is required.%n",
+                                loc, instr, addr);
                         errorFlag = true;
                     }
                 } else if (addr > 31 && isImmediate) {
-                    System.err.printf("[ASM ERROR] LOC %04o, %s: Immediate value (%d) exceeds 5-bit limit (31).%n", loc, instr, addr);
+                    System.err.printf(
+                            "[ASM ERROR] LOC %04o, %s: Immediate value (%d) exceeds 5-bit limit (31).%n",
+                            loc, instr, addr);
                     errorFlag = true;
-                }
-                // --- End Critical Check ---
-
-                int addrField;
-                if (addr < 32) {
-                    addrField = addr & 0x1F;
-                } else {
-                    addrField = addr & 0x7FF;
                 }
 
                 int rVal = Integer.parseInt(R, 2);
                 int ixVal = Integer.parseInt(IX, 2);
                 int iVal = Integer.parseInt(I, 2);
 
-                // --- Corrected 16-bit word encoding for A11 addressing ---
-                int word = 0;
-
-// Determine which format to use
+                int word;
                 boolean uses11bit = Set.of("JMA", "JSR", "LDX", "STX").contains(instr);
 
                 if (uses11bit) {
-                    // --- Absolute (11-bit) addressing layout ---
-                    // | opcode(6) | R(2) | IX(2) | I(1) | Address(11) |
-                    word |= (opcodeVal << 10);  // shift 10, not 11 ✅
-                    word |= (rVal << 8);
-                    word |= (ixVal << 6);
-                    word |= (iVal << 5);
-                    word |= (addr & 0x7FF);     // keep 11 bits
+                    word = (opcodeVal << 10)
+                            | (rVal << 8)
+                            | (ixVal << 6)
+                            | (iVal << 5)
+                            | (addr & 0x7FF);
                 } else {
-                    // --- Page-relative (5-bit) addressing layout ---
-                    // | opcode(6) | R(2) | IX(2) | I(1) | Address(5) |
-                    word |= (opcodeVal << 10);
-                    word |= (rVal << 8);
-                    word |= (ixVal << 6);
-                    word |= (iVal << 5);
-                    word |= (addr & 0x1F);      // keep 5 bits
+                    word = (opcodeVal << 10)
+                            | (rVal << 8)
+                            | (ixVal << 6)
+                            | (iVal << 5)
+                            | (addr & 0x1F);
                 }
 
                 bin = toBinary(word, 16);
                 System.out.printf("[ASM] %s @%04o addr=%04o word=%06o%n", instr, loc, addr, word);
 
-
-
-
                 memory.put(loc, bin);
                 sourceMap.put(loc, original);
                 loc++;
                 continue;
-            } // End of Memory Reference instruction block// <--- The MR block now closes here, after encoding the instruction!
-
-            else if (instr.equalsIgnoreCase("END")) {
-                break; // Stop assembly at END
             }
-
+            else if (instr.equalsIgnoreCase("END")) {
+                break;
+            }
             else {
-                // Fallback (unknown mnemonic): encode NOP-ish word
                 System.err.printf("[ASM ERROR] LOC %04o: Unknown mnemonic: %s%n", loc, instr);
                 errorFlag = true;
                 bin = opcode6 + "0000000000";
@@ -595,19 +616,28 @@ public class Assembler {
 
     public static void generateLoadFile(String outFile) throws IOException {
         System.out.println("[DEBUG] Writing load file to " + outFile);
-        try (PrintWriter writer = new PrintWriter(new FileWriter(outFile))) {
-            // Include program start address as the very first line for the loader
-//            writer.printf("%s %s%n", "START", toOctal(programStart));
 
+        try (PrintWriter writer = new PrintWriter(new FileWriter(outFile))) {
+
+            // Get and sort addresses so output is in ascending order
             List<Integer> addresses = new ArrayList<>(memory.keySet());
+            Collections.sort(addresses);
+
             for (int i = 0; i < addresses.size(); i++) {
                 int addr = addresses.get(i);
                 String addrOct = toOctal(addr);
+
                 String valBinary = memory.get(addr);
                 int valInt = safeParse(valBinary);
                 String valOct = toOctal(valInt);
-                // Write only address and value
-                writer.printf("%s %s%n", addrOct, valOct);
+
+                if (i < addresses.size() - 1) {
+                    // All but the last line: include newline
+                    writer.printf("%s %s%n", addrOct, valOct);
+                } else {
+                    // Last line: NO trailing newline
+                    writer.printf("%s %s", addrOct, valOct);
+                }
             }
         }
     }
@@ -615,7 +645,6 @@ public class Assembler {
     /* ======================== SAFE PARSE ======================== */
     private static int safeParse(String valBinary) {
         try {
-            // Trim to 16 bits for safety
             if (valBinary.length() > 16) valBinary = valBinary.substring(valBinary.length() - 16);
 
             int val;
@@ -623,10 +652,9 @@ public class Assembler {
                 val = Integer.parseInt(valBinary, 2);
             else
                 val = Integer.parseInt(valBinary);
-            return val & 0xFFFF;   // force 16-bit unsigned value
+            return val & 0xFFFF;
         } catch (Exception e) {
             return 0;
         }
     }
-
 }

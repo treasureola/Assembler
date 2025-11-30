@@ -20,6 +20,11 @@ public class MachineCore {
     private Runnable onCycleListener;
     private java.util.function.Consumer<String> printerOutput;
     private ExecutionListener listener;
+    private volatile String pendingConsoleInput = null;
+    // true when we expect the next Console Input from the GUI to satisfy TRAP 1
+    private volatile boolean waitingForTrap1Input = false;
+    private String[] paragraphSentences = null;
+
 
     public void setExecutionListener(ExecutionListener l) { this.listener = l; }
     private void narrate(String s) { if (listener != null) listener.onNarrative(s); }
@@ -28,6 +33,12 @@ public class MachineCore {
         if (printerOutput != null) printerOutput.accept(msg + "\n");
         else System.out.println(msg);
     }
+    public void provideConsoleInput(String line) {
+        // called from GUI "Send" button
+        if (line == null) line = "";
+        this.pendingConsoleInput = line;
+    }
+
     public void setOnCycleListener(Runnable r) { this.onCycleListener = r; }
 
     public MachineCore(Memory memory, Registers regs) {
@@ -128,74 +139,174 @@ public class MachineCore {
     private void execCHK(int r, int devId) {
         int ready = 1; // For simulation, assume device is always ready
         regs.setGPRValue(r, ready);
-        printToPrinter(String.format("[CHK] R%d ← dev=%d ready=%d", r, devId, ready));
+//        printToPrinter(String.format("[CHK] R%d ← dev=%d ready=%d", r, devId, ready));
     }
 
     private void execTRAP(int trapVector) {
-        printToPrinter(String.format("[TRAP] Trap vector %d activated", trapVector));
-        
+        // Small header line so you still see which trap fired
+//        printToPrinter(String.format("[TRAP] Trap vector %d activated\n", trapVector));
+
         switch (trapVector) {
-            case 0: // TRAP 0: Read file (6 sentences into memory at address 0300)
-                // For simulation: Load sample paragraph into memory
-                loadSampleParagraph();
-                printToPrinter("[TRAP 0] File read: 6 sentences loaded into memory at 0300");
-                break;
-                
-            case 1: // TRAP 1: Get user input (word stored at address 0400)
-                // For simulation: Get input from user via console
-                getUserInput();
-                printToPrinter("[TRAP 1] User input received and stored at 0400");
-                break;
-                
-            default:
-                printToPrinter(String.format("[TRAP] Unknown trap vector: %d", trapVector));
-                break;
+            case 0 -> { // TRAP 0: Read file (6 sentences into memory at address 0300)
+                loadSampleParagraph();  // loads AND prints sentences
+            }
+            case 1 -> { // TRAP 1: Get user input word + search
+                getUserInputAndSearch();
+            }
+            default -> printToPrinter(String.format("[TRAP] Unknown trap vector: %d\n", trapVector));
         }
     }
-    
+
+    // Wait for a line of input from either the GUI console (if present)
+// or from stdin (text-mode simulator fallback).
+    private String waitForConsoleInput(String prompt) {
+        SimulatorController ui = SimulatorController.activeInstance;
+        if (ui != null) {
+            ui.appendPrinter(prompt + "\n");
+            return ui.pollConsoleInput();
+        } else {
+            // Text-mode (Phase 2) run: don't block on stdin; caller will use default
+            return null;
+        }
+    }
+
+
+    /**
+     * TRAP 0:
+     *  - Loads 6 sentences into memory starting at 0300
+     *  - Prints those sentences on the printer (Program 2 requirement)
+     */
     private void loadSampleParagraph() {
         // Sample 6 sentences for testing
-        String[] sentences = {
-            "The quick brown fox jumps over the lazy dog.",
-            "Programming is fun and challenging at the same time.",
-            "Computer science teaches us how to solve problems.",
-            "Assembly language is low level but very powerful.",
-            "Cache memory improves system performance significantly.",
-            "Operating systems manage hardware and software resources."
+        paragraphSentences = new String[] {
+                "The quick brown fox jumps over the lazy dog.",
+                "Programming is fun and challenging at the same time.",
+                "Computer science teaches us how to solve problems.",
+                "Assembly language is low level but very powerful.",
+                "Cache memory improves system performance significantly.",
+                "Operating systems manage hardware and software resources."
         };
-        
-        int baseAddr = 0x300; // 0300 octal = 192 decimal
-        int addr = baseAddr;
-        
-        for (String sentence : sentences) {
+
+        int baseAddr = 0x300;  // 0300 (octal)
+        int addr     = baseAddr;
+
+        printToPrinter(String.format("[INFO] File Read: Reading Sentences into memory\n",
+                paragraphSentences.length, baseAddr));
+//        printToPrinter.appendText("[READY] Basic Machine Simulator initialized.\n");
+
+        // Write each sentence into memory, null-terminated, and print it
+        for (String sentence : paragraphSentences) {
             for (char c : sentence.toCharArray()) {
                 memory.writeWordDirect(addr, (int) c);
                 addr++;
             }
-            // Add null terminator after each sentence
+            // Null terminator between sentences
             memory.writeWordDirect(addr, 0);
             addr++;
+
+            // Print on the console printer
+            printToPrinter(sentence + "\n");
         }
-        
-        printToPrinter(String.format("[TRAP 0] Loaded %d sentences starting at address %04o", 
-            sentences.length, baseAddr));
+
+        printToPrinter(String.format("[INFO] File read: %d sentences loaded into memory at %04o\n",
+                paragraphSentences.length, baseAddr));
     }
-    
+
+    /**
+     * Helper used by TRAP 1:
+     *  - Asks the user for the search word (via GUI console if available)
+     *  - Stores it at 0400
+     *  - Searches the paragraph loaded by TRAP 0 and prints the result
+     */
+    private void getUserInputAndSearch() {
+        // Ask through GUI console if available, otherwise just use default
+        String word = waitForConsoleInput(
+                "[INPUT] Enter the search word in the Console Input field and press Send");
+
+        if (word == null) {
+            word = "";
+        }
+        word = word.trim();
+        if (word.isEmpty()) {
+            word = "the";   // default test word for non-GUI / empty input
+        }
+
+        // Store word at 0400 in memory (as Program 2 expects)
+        int baseAddr = 0x400; // 0400
+        for (int i = 0; i < word.length(); i++) {
+            memory.writeWordDirect(baseAddr + i, (int) word.charAt(i));
+        }
+        memory.writeWordDirect(baseAddr + word.length(), 0); // null terminator
+
+        printToPrinter(String.format("[INFO] User input received and stored at %04o\n", baseAddr));
+
+        // Now search the paragraph and print results
+        searchWordInParagraph(word);
+    }
+
+    /**
+     * Searches paragraphSentences for the given word
+     * and prints:
+     *   "Word 'w' found in sentence S, word W"
+     * or a "not found" message.
+     */
+    private void searchWordInParagraph(String word) {
+        if (paragraphSentences == null) {
+            printToPrinter("[TRAP 1] No paragraph loaded (call TRAP 0 first).\n");
+            return;
+        }
+
+        String target = word.toLowerCase();
+        boolean found = false;
+
+        for (int sIdx = 0; sIdx < paragraphSentences.length; sIdx++) {
+            String sentence = paragraphSentences[sIdx];
+
+            // Split into tokens on whitespace
+            String[] tokens = sentence.split("\\s+");
+
+            for (int wIdx = 0; wIdx < tokens.length; wIdx++) {
+                // Strip punctuation for comparison
+                String cleaned = tokens[wIdx].replaceAll("[^A-Za-z0-9]", "").toLowerCase();
+
+                if (!cleaned.isEmpty() && cleaned.equals(target)) {
+                    int sentenceNum = sIdx + 1;
+                    int wordNum     = wIdx + 1;
+                    printToPrinter(String.format(
+                            "Word '%s' found in sentence %d, word %d\n",
+                            word, sentenceNum, wordNum));
+                    found = true;
+                }
+            }
+        }
+
+        if (!found) {
+            printToPrinter(String.format("Word '%s' not found in paragraph.\n", word));
+        }
+    }
+
     private void getUserInput() {
-        // For simulation: Use a default test word
-        // In a real implementation, this would prompt the user
-        String testWord = "the"; // Default test word
-        int baseAddr = 0x400; // 0400 octal = 256 decimal
-        
-        for (int i = 0; i < testWord.length(); i++) {
-            memory.writeWordDirect(baseAddr + i, (int) testWord.charAt(i));
+        String word = waitForConsoleInput(
+                "[INPUT] Enter the search word in the Console Input field and press Send");
+
+        if (word == null) {
+            word = "";
         }
-        // Null terminator
-        memory.writeWordDirect(baseAddr + testWord.length(), 0);
-        
-        printToPrinter(String.format("[TRAP 1] Input word '%s' stored at address %04o", 
-            testWord, baseAddr));
+        word = word.trim();
+        if (word.isEmpty()) {
+            word = "the";   // default for non-GUI runs
+        }
+
+        int baseAddr = 0x400; // 0400
+        for (int i = 0; i < word.length(); i++) {
+            memory.writeWordDirect(baseAddr + i, (int) word.charAt(i));
+        }
+        memory.writeWordDirect(baseAddr + word.length(), 0);
+
+        narrate(String.format("[TRAP 1] Input word '%s' stored at address %04o",
+                word, baseAddr));
     }
+
 
     // Helper method for execution logging
     private void printExec(String instr) {
@@ -365,17 +476,17 @@ public class MachineCore {
         int addr = 0x200 + dev; // Device buffer area
         int value = memory.readForCPU(addr) & 0xFFFF;
         regs.setGPRValue(r, value);
-        printToPrinter(String.format("[IN] R%d ← dev=%d value=%04o", r, dev, value));
+        narrate(String.format("[IN] R%d ← dev=%d value=%04o", r, dev, value));
     }
 
     private void execOUT(int r, int dev) {
         // Output - simplified: write to printer
         int value = regs.getGPRValue(r) & 0xFF; // Only low byte
-        printToPrinter(String.format("%c", (char)value));
+        narrate("[HALT] Program finished.");
     }
 
     private void execHLT() {
         halted = true;
-        printToPrinter("[HALT] Program finished.");
+//        printToPrinter("[HALT] Program finished.");
     }
 }
