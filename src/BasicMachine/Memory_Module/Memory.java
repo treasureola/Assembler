@@ -103,13 +103,13 @@ public class Memory {
     public void writeWord(int address, int value) {
         if (address < 0 || address >= SIZE)
             throw new IllegalArgumentException("Invalid memory address: " + address);
-        
+
         if (cacheEnabled && cache != null) {
             cache.write(address, value, this);
         } else {
             mem[address] = value & 0xFFFF;  // Mask to 16 bits
         }
-        System.out.printf("[DEBUG] writeWord: addr=%04o val=%06o%n", address, value & 0xFFFF);
+//        System.out.printf("[DEBUG] writeWord: addr=%04o val=%06o%n", address, value & 0xFFFF);
     }
 
     /* ==============================================================
@@ -136,7 +136,7 @@ public class Memory {
      * ==============================================================
      */
     public int readWord(int address) {
-        System.out.printf("[DEBUG] readWord: addr=%04o val=%06o%n", address, mem[address]);
+//        System.out.printf("[DEBUG] readWord: addr=%04o val=%06o%n", address, mem[address]);
         if (address < 0 || address >= SIZE)
             throw new IllegalArgumentException("Invalid memory address: " + address);
 

@@ -1,0 +1,255 @@
+# ==============================================================
+# InstructionSet_test.src
+# --------------------------------------------------------------
+# Basic Machine ISA Regression Test
+# - Exercises most instructions at least once.
+# - Explicitly uses CHK and TRAP 0 / TRAP 1.
+# - Prints simple markers to the printer so you can see progress.
+# ==============================================================
+
+# -------------------------------
+# CODE SECTION
+# -------------------------------
+LOC 050
+
+START:
+    # --- Clear all GPRs using LDR ---
+    LDR 0,0,ZERO       # R0 = 0
+    LDR 1,0,ZERO       # R1 = 0
+    LDR 2,0,ZERO       # R2 = 0
+    LDR 3,0,ZERO       # R3 = 0
+
+    # Initialize X1 = 0 using LDX/STX
+    LDX 1,0,ZERO       # X1 = 0
+    STX 1,0,IDX_SAVE   # Store X1 (0) -> IDX_SAVE
+
+    # --- Print header 'T' (for Test) using OUT ---
+    LDR 0,0,CHAR_T     # R0 = 'T'
+    OUT 0,1            # Print 'T'
+
+    # =========================================================
+    # 1. Test basic load/store + arithmetic (LDR, STR, AMR, SMR)
+    # =========================================================
+TEST_ARITH:
+    LDR 0,0,VAL_5      # R0 = 5
+    LDR 1,0,VAL_10     # R1 = 10
+
+    # R0 = R0 + MEM[VAL_10] = 5 + 10 = 15
+    AMR 0,0,VAL_10
+    STR 0,0,RES_AMR    # Store result (15)
+
+    # R1 = R1 - MEM[VAL_5] = 10 - 5 = 5
+    SMR 1,0,VAL_5
+    STR 1,0,RES_SMR    # Store result (5)
+
+    # AIR / SIR on R2
+    AIR 2,3            # R2 = 3
+    SIR 2,1            # R2 = 2
+    STR 2,0,RES_AIR    # Store 2
+
+    # =========================================================
+    # 2. Test address load (LDA) – in your core, LDA puts EA in R0
+    # =========================================================
+TEST_LDA:
+    LDA 0,0,VAL_5      # R0 <- address of VAL_5 (EA)
+    STR 0,0,RES_LDA    # Save EA so you can inspect it
+
+    # =========================================================
+    # 3. Test logic ops (AND, ORR, NOT)
+    # =========================================================
+TEST_LOGIC:
+    LDR 0,0,BIT_MASK1  # R0 = 0b0000_1111 (15)
+    LDR 1,0,BIT_MASK2  # R1 = 0b0011_0011 (51)
+
+    AND 0,1            # R0 = R0 & R1  (should be 3)
+    STR 0,0,RES_AND
+
+    ORR 0,1            # R0 = R0 | R1  (should be 51)
+    STR 0,0,RES_OR
+
+    NOT 0              # R0 = ~R0      (bitwise)
+    STR 0,0,RES_NOT
+
+    # =========================================================
+    # 4. Test shift/rotate (SRC, RRC)
+    # =========================================================
+TEST_SHIFT:
+    LDR 0,0,VAL_8      # R0 = 8 (0000...1000)
+    SRC 0,0,1          # shift left by 1 -> 16
+    STR 0,0,RES_SRC
+
+    RRC 0,1            # rotate right by 1 bit
+    STR 0,0,RES_RRC
+
+    # =========================================================
+    # 5. Test multiply / divide (MLT, DVD)
+    # =========================================================
+TEST_MULDIV:
+    LDR 0,0,VAL_4      # R0 = 4
+    LDR 1,0,VAL_3      # R1 = 3
+    MLT 0,1            # R0 = 4 * 3 = 12
+    STR 0,0,RES_MLT
+
+    DVD 0,1            # R0 = 12 / 3 = 4
+    STR 0,0,RES_DVD
+
+    # =========================================================
+    # 6. Test TRR + CC-based / value-based branches:
+    #    TRR, JCC, JZ, JNE, JGE, SOB, JMA
+    # =========================================================
+TEST_BRANCH:
+    LDR 0,0,VAL_5      # R0 = 5
+    LDR 1,0,VAL_5      # R1 = 5
+    TRR 0,1            # CC = 1 because R0 == R1
+
+    # JCC should jump when CC == 1
+    JCC 0,0,CC_OK
+
+CC_FAIL:
+    # If we land here, JCC failed – print 'F'
+    LDR 0,0,CHAR_F
+    OUT 0,1
+    JMA 0,BRANCH_CONT
+
+CC_OK:
+    LDR 0,0,CHAR_C     # print 'C' for CC_OK
+    OUT 0,1
+
+BRANCH_CONT:
+    # Test JZ (R2 currently 2 from earlier; make it 0)
+    LDR 2,0,ZERO       # R2 = 0
+    JZ  2,0,JZ_TAKEN
+
+JZ_NOT_TAKEN:
+    LDR 0,0,CHAR_Z     # would print 'Z' if JZ failed
+    OUT 0,1
+    JMA 0,AFTER_JZ
+
+JZ_TAKEN:
+    LDR 0,0,CHAR_J     # print 'J' when JZ taken correctly
+    OUT 0,1
+
+AFTER_JZ:
+    # Test JNE: Make R0 != R1
+    LDR 0,0,VAL_4
+    LDR 1,0,VAL_5
+    JNE 0,0,JNE_TAKEN
+
+JNE_FAIL:
+    LDR 0,0,CHAR_E     # 'E' if JNE failed
+    OUT 0,1
+    JMA 0,AFTER_JNE
+
+JNE_TAKEN:
+    LDR 0,0,CHAR_N     # 'N' when JNE taken
+    OUT 0,1
+
+AFTER_JNE:
+    # Test JGE: treat positive value as >= 0
+    LDR 0,0,VAL_4
+    JGE 0,0,JGE_TAKEN
+
+JGE_FAIL:
+    LDR 0,0,CHAR_G     # 'G' if fail
+    OUT 0,1
+    JMA 0,AFTER_JGE
+
+JGE_TAKEN:
+    LDR 0,0,CHAR_g     # 'g' when JGE taken
+    OUT 0,1
+
+AFTER_JGE:
+    # Test SOB: loop R3 down from 3 to 0, printing '.' three times
+    LDR 3,0,VAL_3      # R3 = 3
+
+SOB_LOOP:
+    LDR 0,0,CHAR_DOT   # '.'
+    OUT 0,1
+    SOB 3,0,SOB_LOOP   # decrement R3, jump back while != 0
+
+    # =========================================================
+    # 7. Test CHK + IN/OUT
+    # =========================================================
+TEST_IO:
+    # Device 0: CHK + IN (reads from 0200+dev in your core)
+    CHK 0,0            # Check device 0 (always ready in your sim)
+    IN  0,0            # R0 <- value at 0200 (likely 0)
+    OUT 0,1            # may print NUL / nothing visible, but exercises OUT path
+
+    # Device 1: CHK only (your printer device)
+    CHK 1,1
+
+    # Print a separator
+    LDR 0,0,CHAR_BAR   # '|'
+    OUT 0,1
+
+    # =========================================================
+    # 8. Test TRAP 0 and TRAP 1
+    #    - TRAP 0: load sample sentences into memory
+    #    - TRAP 1: get a search word via UI console input
+    # =========================================================
+TEST_TRAPS:
+    # TRAP 0: “file read” (sample paragraph)
+    TRAP 0
+
+    # TRAP 1: ask user for a word (via GUI Console Input)
+    TRAP 1
+
+    # After TRAP 1, print '!' so we know we passed both traps
+    LDR 0,0,CHAR_BANG  # '!'
+    OUT 0,1
+
+    # =========================================================
+    # DONE
+    # =========================================================
+    LDR 0,0,CHAR_EOL   # newline
+    OUT 0,1
+
+    HLT                # Stop program
+
+# -------------------------------
+# DATA SECTION
+# -------------------------------
+# Put all data in low memory (< 040 octal ≈ 32 decimal)
+# so LDR/STR etc don’t hit the 5-bit address limit.
+
+LOC 020
+ZERO:       DATA 0
+VAL_3:      DATA 3
+VAL_4:      DATA 4
+VAL_5:      DATA 5
+VAL_8:      DATA 8
+VAL_10:     DATA 10
+
+BIT_MASK1:  DATA 15      # 0b0000_1111
+BIT_MASK2:  DATA 51      # 0b0011_0011
+
+RES_AMR:    DATA 0
+RES_SMR:    DATA 0
+RES_AIR:    DATA 0
+RES_LDA:    DATA 0
+RES_AND:    DATA 0
+RES_OR:     DATA 0
+RES_NOT:    DATA 0
+RES_SRC:    DATA 0
+RES_RRC:    DATA 0
+RES_MLT:    DATA 0
+RES_DVD:    DATA 0
+
+IDX_SAVE:   DATA 0       # where we store X1 initially
+
+# Characters for OUT tests
+CHAR_T:     DATA 84      # 'T'
+CHAR_C:     DATA 67      # 'C'
+CHAR_F:     DATA 70      # 'F'
+CHAR_J:     DATA 74      # 'J'
+CHAR_N:     DATA 78      # 'N'
+CHAR_G:     DATA 71      # 'G'
+CHAR_g:     DATA 103     # 'g'
+CHAR_S:     DATA 83      # 'S' (not used now but handy)
+CHAR_DOT:   DATA 46      # '.'
+CHAR_BAR:   DATA 124     # '|'
+CHAR_BANG:  DATA 33      # '!'
+CHAR_EOL:   DATA 10      # '\n'
+
+END

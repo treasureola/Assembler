@@ -1,0 +1,165 @@
+        LOC 10                    ; Low page for pointers + code
+
+; ===========================================================
+; PAGE-LOCAL POINTER POOL (000000 ..)
+; ===========================================================
+
+P_ARR_PTR:        DATA ARR_BASE
+P_COUNT20_PTR:    DATA COUNT20
+P_USERBOX_PTR:    DATA USERBOX
+P_TMPX_PTR:       DATA TMPX
+P_BEST_PTR:       DATA BESTDIFF
+P_CLOSEST_PTR:    DATA CLOSEST
+P_NEGONE_PTR:     DATA NEGONE
+P_ZERO_PTR:       DATA ZERO
+P_PRLOOP_PTR:     DATA PRLOOP
+P_NEXTNUM_PTR:    DATA NEXTNUM
+P_SHOWRESULT_PTR: DATA SHOWRESULT
+P_ASKNUM_PTR:     DATA ASKNUM
+P_FIRSTONE_PTR:   DATA FIRSTONE
+P_NOUPDATE_PTR:   DATA NOUPDATE
+
+
+
+; ===========================================================
+; STARTUP
+; ===========================================================
+Loc 30
+START:
+        LDX 1, P_ARR_PTR, 0        ; X1 ← ARR_BASE
+        STX 1, P_TMPX_PTR, 1       ; [TMPX] ← ARR_BASE   (initialize the pointer once)
+        LDR 2, P_COUNT20_PTR, 1    ; R2 ← 20
+
+
+
+; ===========================================================
+; PRINT 20 NUMBERS
+; ===========================================================
+PRLOOP:
+        LDR 0, 1, 0                ; R0 ← M[X1]
+        OUT 0, 1                   ; print
+
+        ; advance pointer:  TMPX ← TMPX + 1 ; X1 ← TMPX
+        LDR 3, P_TMPX_PTR, 0       ; R3 ← [TMPX]
+        AIR 3, 1                   ; R3++
+        STR 3, P_TMPX_PTR, 0       ; [TMPX] ← R3
+        LDX 1, P_TMPX_PTR, 0       ; X1 ← [TMPX]
+
+        SIR 2, 1                   ; R2--
+        JZ  2, P_ASKNUM_PTR, 1     ; when 0 → go ask for input
+        JMA P_PRLOOP_PTR, 1        ; loop
+
+
+
+; ===========================================================
+; INPUT SECTION
+; ===========================================================
+ASKNUM:
+        ; read USERBOX
+        LDX 3, P_USERBOX_PTR, 0
+        IN  0, 0
+        STR 0, 3, 0
+
+        ; reset loop counter
+        LDR 2, P_COUNT20_PTR, 1    ; R2 ← 20
+
+        ; BESTDIFF ← 0  (forces FIRSTONE on first compare)
+        LDR 3, P_ZERO_PTR, 1
+        STR 3, P_BEST_PTR, 1
+
+        ; restart scan from ARR_BASE
+        LDX 1, P_ARR_PTR, 1
+        STX 1, P_TMPX_PTR, 1       ; [TMPX] = ARR_BASE
+
+        JMA P_NEXTNUM_PTR, 1
+
+
+; ===========================================================
+; FIND CLOSEST NUMBER
+; ===========================================================
+NEXTNUM:
+        LDR 0, 1, 0                ; R0 ← A[i]
+        LDR 1, P_USERBOX_PTR, 1    ; R1 ← USER
+        SMR 1, 1, 0                ; R1 ← USER - A[i]
+
+        ; R1 ← |R1|
+        JGE 0, SKIPNEG, 1
+        LDR 3, P_ZERO_PTR, 1
+        STR 3, P_BEST_PTR, 1       ; stash 0 temporarily (safe cell)
+        SMR 3, 1, 0                ; R3 ← 0 - R1 = |R1|
+        STR 3, P_BEST_PTR, 1
+        LDR 1, P_BEST_PTR, 1       ; R1 = |diff|
+SKIPNEG:
+
+        ; compare with BESTDIFF (stored at P_BEST_PTR)
+        LDR 3, P_BEST_PTR, 1       ; R3 = BESTDIFF
+        JZ  3, P_FIRSTONE_PTR, 1   ; if 0 → first assignment
+        SMR 3, 1, 0                ; R3 = BESTDIFF - |diff|
+        JGE 0, P_NOUPDATE_PTR, 1   ; if ≥0 keep best
+
+P_FIRSTONE_PTR_TARGET:
+FIRSTONE:
+        STR 1, P_BEST_PTR, 1       ; BESTDIFF ← |diff|
+        STR 0, P_CLOSEST_PTR, 1    ; CLOSEST  ← A[i]
+
+NOUPDATE:
+        ; advance pointer:  TMPX ← TMPX + 1 ; X1 ← TMPX
+        LDR 3, P_TMPX_PTR, 0       ; R3 ← [TMPX]
+        AIR 3, 1                   ; R3++
+        STR 3, P_TMPX_PTR, 1       ; [TMPX] ← R3
+        LDX 1, P_TMPX_PTR, 1       ; X1 ← [TMPX]
+
+        SIR 2, 1
+        JZ  2, P_SHOWRESULT_PTR, 1
+        JMA P_NEXTNUM_PTR, 1
+
+
+; ===========================================================
+; SHOW RESULT
+; ===========================================================
+SHOWRESULT:
+        LDR 0, P_CLOSEST_PTR, 1
+        OUT 0, 1
+        HLT
+
+; ===========================================================
+; LOCAL DATA
+; ===========================================================
+        LOC 60
+NEGONE:      DATA -1
+ZERO:        DATA 0
+COUNT20:     DATA 20
+USERBOX:     DATA 0
+TMPX:        DATA 0          ; pointer scratch ONLY
+BESTDIFF:    DATA 0          ; NEW: best-|diff| storage
+CLOSEST:     DATA 0
+SAVEX1:      DATA 0
+
+
+; ===========================================================
+; ARRAY DATA
+; ===========================================================
+        LOC 300
+ARR_BASE:
+        DATA 5
+        DATA 4
+        DATA 6
+        DATA 8
+        DATA 10
+        DATA 12
+        DATA 14
+        DATA 16
+        DATA 18
+        DATA 20
+        DATA 22
+        DATA 24
+        DATA 26
+        DATA 28
+        DATA 30
+        DATA 32
+        DATA 34
+        DATA 36
+        DATA 38
+        DATA 40
+
+        END

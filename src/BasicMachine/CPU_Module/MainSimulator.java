@@ -63,7 +63,7 @@ public class MainSimulator {
              * so we must step up one directory to find load.ld.
              */
             File cwd = new File(System.getProperty("user.dir"));
-            System.out.println("[DEBUG] CWD (MainSimulator): " + cwd.getAbsolutePath());
+//            System.out.println("[DEBUG] CWD (MainSimulator): " + cwd.getAbsolutePath());
 
             File projectRoot = cwd;
 // If running from the compiled out/ folder, parent is the project root.
@@ -137,7 +137,7 @@ public class MainSimulator {
              *   - Executing supported instructions (LDR, STR, LDX, LDA, JZ, HLT)
              */
             MachineCore core = new MachineCore(mem, regs);
-            System.out.printf("[VERIFY] PC before run = %06o%n", regs.getPC());
+//            System.out.printf("[VERIFY] PC before run = %06o%n", regs.getPC());
             core.run();
 
             /* ----------------------------------------------------------

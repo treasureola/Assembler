@@ -81,17 +81,17 @@ public class ProgramLoader {
 
         int word = memory.readWord(programStartAddress) & 0xFFFF;
         int opcode = (word >> 10) & 0x3F;
-        System.out.printf("[DEBUG] Start at %06o (opcode %d, word %06o)%n",
-                programStartAddress, opcode, word);
+//        System.out.printf("[DEBUG] Start at %06o (opcode %d, word %06o)%n",
+//                programStartAddress, opcode, word);
         
         // Additional check: If start address is 0062 (50) and it's not a valid opcode, try 0066
         if (programStartAddress == 50 && opcode == 0) {
-            System.out.println("[DEBUG] Address 0062 has opcode 0, checking 0066...");
+//            System.out.println("[DEBUG] Address 0062 has opcode 0, checking 0066...");
             int word66 = memory.readWord(54) & 0xFFFF;  // 0066 = 54 decimal
             int opcode66 = (word66 >> 10) & 0x3F;
-            System.out.printf("[DEBUG] Address 0066 has opcode %d (word %06o)%n", opcode66, word66);
+//            System.out.printf("[DEBUG] Address 0066 has opcode %d (word %06o)%n", opcode66, word66);
             if (opcode66 == 51 && KNOWN_OPCODES.contains(51)) {  // CHK
-                System.out.println("[DEBUG] Using 0066 instead (CHK instruction found)");
+//                System.out.println("[DEBUG] Using 0066 instead (CHK instruction found)");
                 programStartAddress = 54;  // 0066 octal
             }
         }
@@ -108,7 +108,7 @@ public class ProgramLoader {
             int word = mem.readWord(a) & 0xFFFF;
             int code = op.applyAsInt(word);
             if (code != 0 && KNOWN_OPCODES.contains(code)) {
-                System.out.printf("[DEBUG] Found opcode %d at address %06o (word %06o)%n", code, a, word);
+//                System.out.printf("[DEBUG] Found opcode %d at address %06o (word %06o)%n", code, a, word);
                 return a;
             }
         }
@@ -117,13 +117,13 @@ public class ProgramLoader {
         for (int a = from; a <= to; a++) {
             int w = mem.readWord(a) & 0xFFFF;
             if (w >= 010000) {
-                System.out.printf("[DEBUG] Pass 2: Found word %06o at address %06o%n", w, a);
+//                System.out.printf("[DEBUG] Pass 2: Found word %06o at address %06o%n", w, a);
                 return a;
             }
         }
 
         // Pass 3: ultimate fallback
-        System.out.printf("[DEBUG] Pass 3: No plausible opcode found; defaulting to %06o%n", from);
+//        System.out.printf("[DEBUG] Pass 3: No plausible opcode found; defaulting to %06o%n", from);
         return from;
     }
 

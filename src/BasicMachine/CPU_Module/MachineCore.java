@@ -56,8 +56,8 @@ public class MachineCore {
         fetch();
         decodeAndExecute();
 
-        System.out.printf("[DEBUG] PC=%04o | IR=%06o | Hits=%d | Misses=%d%n",
-                regs.getPC(), regs.getIR(), memory.getCache().getHits(), memory.getCache().getMisses());
+//        System.out.printf("[DEBUG] PC=%04o | IR=%06o | Hits=%d | Misses=%d%n",
+//                regs.getPC(), regs.getIR(), memory.getCache().getHits(), memory.getCache().getMisses());
 
         if (onCycleListener != null) onCycleListener.run();
     }
@@ -84,7 +84,7 @@ public class MachineCore {
         int a11 = ir & 0x7FF;
         int a5  = ir & 0x1F;
 
-        System.out.printf("[TRACE] opcode=%d IR=%06o%n", op, ir);
+//        System.out.printf("[TRACE] opcode=%d IR=%06o%n", op, ir);
         switch (op) {
             case InstructionSet.LDR -> { execLDR(r, ix, i, a5); printExec("LDR");}
             case InstructionSet.STR -> { execSTR(r, ix, i, a5); printExec("STR"); }
