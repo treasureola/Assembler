@@ -1,88 +1,53 @@
 package BasicMachine.CPU_Module;
 
-import BasicMachine.Memory_Module.Memory;     // Memory simulation module (2048 × 16-bit words)
-import BasicMachine.simulator.ProgramLoader;  // Handles reading and parsing of .ld files
+import BasicMachine.Memory_Module.Memory;
+import BasicMachine.simulator.ProgramLoader;
 
 import java.io.File;
 
 /* ==============================================================
  * MainSimulator.java
  * --------------------------------------------------------------
- * Purpose:
- *   This class serves as the main driver or entry point for
- *   testing the Basic Machine CPU independently from the GUI.
- *
- * Description:
- *   - Initializes the Memory and Register modules.
- *   - Loads an assembled program (load.ld) into memory.
- *   - Starts the CPU core (MachineCore) to execute instructions
- *     until a HLT instruction halts execution.
- *
- * Usage:
- *   Run this class directly from IntelliJ or the command line:
- *       java BasicMachine.CPU_Module.MainSimulator
- *
- * Integration Summary:
- *   - Memory:     Handles read/write operations to memory.
- *   - Registers:  Stores CPU registers (GPR, IXR, PC, etc.).
- *   - ProgramLoader: Loads .ld (octal) machine code into memory.
- *   - MachineCore: Executes the instruction cycle.
- *
- * Equivalent to clicking "Run" in the Simulator UI (Part 1 GUI).
+ * CLI entry point for running load.ld without the GUI.
+ * Now also exposes runOnceForCli() which returns a status code
+ * so the TestRunner can print PASS/FAIL summaries.
  * ==============================================================
  */
 public class MainSimulator {
 
-    /* --------------------------------------------------------------
-     * main()
-     * --------------------------------------------------------------
-     * Entry point for running the CPU simulation manually.
-     * Steps mirror the sequence that occurs when the user
-     * runs a program via the JavaFX GUI.
+    /**
+     * Run the simulator once from the command line.
+     *
+     * @return 0 if the program executed and halted normally (HLT),
+     *         1 if there was an exception during simulation,
+     *         2 if load.ld could not be found.
      */
-    public static void main(String[] args) {
+    public static int runOnceForCli() {
         try {
-            /* ----------------------------------------------------------
-             * STEP 1: Select the program file to load.
-             * ----------------------------------------------------------
-             * The assembler (Part 0) generates a file named "load.ld"
-             * containing machine code in octal format. Each line holds:
-             *     [address] [octal instruction]
-             *
-             * This file must exist in the same directory from which
-             * the simulator is launched.
-             */
-            /* ----------------------------------------------------------
-             * STEP 1: Select the program file to load.
-             * ----------------------------------------------------------
-             * The assembler (Part 0) now writes load.ld into the project
-             * root folder (the one that contains src/, out/, run_all.sh).
-             *
-             * When run_all.sh executes, the JVM's CWD is:
-             *     .../Assembler/out
-             * so we must step up one directory to find load.ld.
-             */
+            // ------------------------------------------------------
+            // STEP 1: Locate load.ld (written by the Assembler)
+            // ------------------------------------------------------
             File cwd = new File(System.getProperty("user.dir"));
-//            System.out.println("[DEBUG] CWD (MainSimulator): " + cwd.getAbsolutePath());
+            // System.out.println("[DEBUG] CWD (MainSimulator): " + cwd.getAbsolutePath());
 
             File projectRoot = cwd;
-// If running from the compiled out/ folder, parent is the project root.
+            // If running from out/, step up to project root.
             if ("out".equalsIgnoreCase(cwd.getName())) {
                 projectRoot = cwd.getParentFile();
             }
             if (projectRoot == null) {
-                projectRoot = cwd;  // fallback
+                projectRoot = cwd;
             }
 
-// Preferred location: projectRoot/load.ld
+            // Preferred: <projectRoot>/load.ld
             File loadFile = new File(projectRoot, "load.ld");
 
-// Optional fallback: projectRoot/BasicMachine/load.ld
+            // Optional fallback: <projectRoot>/BasicMachine/load.ld
             if (!loadFile.exists()) {
                 loadFile = new File(projectRoot, "BasicMachine/load.ld");
             }
 
-// Last-resort fallback: ./load.ld relative to CWD
+            // Last-resort fallback: ./load.ld relative to CWD
             if (!loadFile.exists()) {
                 loadFile = new File("load.ld");
             }
@@ -94,80 +59,55 @@ public class MainSimulator {
                 System.err.println("  " + new File(projectRoot, "BasicMachine/load.ld").getAbsolutePath());
                 System.err.println("  " + new File("load.ld").getAbsolutePath());
                 System.err.println("Please assemble your source program first using Assembler.java.");
-                return;
+                return 2; // load.ld missing
             }
 
+            // ------------------------------------------------------
+            // STEP 2: Initialize memory and registers
+            // ------------------------------------------------------
+            Memory mem = new Memory();
+            Registers regs = new Registers();
 
-            /* ----------------------------------------------------------
-             * STEP 2: Initialize system components.
-             * ----------------------------------------------------------
-             * - Create the main memory (2K words, all initialized to 0).
-             * - Create the CPU register set.
-             */
-            Memory mem = new Memory();        // Simulated main memory
-            Registers regs = new Registers(); // All CPU registers (R0–R3, X1–X3, PC, etc.)
-
-            /* ----------------------------------------------------------
-             * STEP 3: Load the program into memory.
-             * ----------------------------------------------------------
-             * The ProgramLoader reads the .ld file line by line,
-             * parsing each octal address/value pair and writing
-             * it to memory using Memory.writeWord().
-             */
+            // ------------------------------------------------------
+            // STEP 3: Load program into memory
+            // ------------------------------------------------------
             ProgramLoader loader = new ProgramLoader();
             loader.load(loadFile, mem);
 
-            /* ----------------------------------------------------------
-             * STEP 4: Set the initial Program Counter (PC).
-             * ----------------------------------------------------------
-             * The PC must point to the first valid instruction.
-             * Memory.getProgramStartAddress() finds the first non-zero
-             * memory word, which is assumed to be the program’s entry point.
-             */
+            // ------------------------------------------------------
+            // STEP 4: Set initial PC (program start)
+            // ------------------------------------------------------
             int startAddr = loader.getProgramStartAddress();
             regs.setPC(startAddr);
             System.out.printf("[INFO] Program start address set to %06o%n", startAddr);
 
-            /* ----------------------------------------------------------
-             * STEP 5: Create the MachineCore (CPU).
-             * ----------------------------------------------------------
-             * MachineCore handles:
-             *   - Fetching instructions (using PC, MAR, MBR)
-             *   - Decoding opcode, register, and address fields
-             *   - Executing supported instructions (LDR, STR, LDX, LDA, JZ, HLT)
-             */
+            // ------------------------------------------------------
+            // STEP 5: Create CPU core and run until HLT
+            // ------------------------------------------------------
             MachineCore core = new MachineCore(mem, regs);
-//            System.out.printf("[VERIFY] PC before run = %06o%n", regs.getPC());
-            core.run();
 
-            /* ----------------------------------------------------------
-             * STEP 6: Execute program.
-             * ----------------------------------------------------------
-             * The run() method continues executing instructions
-             * until a HLT instruction or external stop signal occurs.
-             */
             System.out.println("[RUN] Beginning program execution...\n");
-            core.run();
+            core.run();   // <-- run ONCE, not twice
 
-            /* ----------------------------------------------------------
-             * STEP 7: Simulation complete.
-             * ----------------------------------------------------------
-             * Once the CPU halts, print a completion message.
-             * The register states can be examined for verification.
-             */
+            // ------------------------------------------------------
+            // STEP 6: Normal halt
+            // ------------------------------------------------------
             System.out.println("\n[HALT] Simulation finished successfully.");
             System.out.println("All instructions executed. CPU stopped normally.");
 
+            return 0;  // success
+
         } catch (Exception e) {
-            /* ----------------------------------------------------------
-             * ERROR HANDLING
-             * ----------------------------------------------------------
-             * If anything goes wrong (file not found, invalid octal,
-             * null pointer, etc.), display a complete stack trace
-             * for debugging and troubleshooting.
-             */
             System.err.println("[EXCEPTION] Simulation terminated due to an error:");
             e.printStackTrace();
+            return 1;  // runtime error
         }
+    }
+
+    /**
+     * Classic main() – just delegate to runOnceForCli().
+     */
+    public static void main(String[] args) {
+        runOnceForCli();
     }
 }

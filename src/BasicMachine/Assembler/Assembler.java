@@ -67,17 +67,19 @@ public class Assembler {
         }
 
         File file = new File(sourceFile);
+        String baseName = new File(sourceFile).getName();
 
-        if (!file.exists()) file = new File("src/BasicMachine/Program2_test.src");
-        if (!file.exists()) file = new File("BasicMachine/Program2_test.src");
-        if (!file.exists()) file = new File("Program2_test.src");
+// Try as-is first (works when run from project root, IntelliJ, etc.)
+        if (!file.exists()) file = new File("src/BasicMachine/" + baseName);
+        if (!file.exists()) file = new File("BasicMachine/" + baseName);
+        if (!file.exists()) file = new File(baseName);
 
         if (!file.exists()) {
             System.err.println("Error: source file not found: " + sourceFile);
             System.err.println("Checked paths:");
-            System.err.println("  ./Program2_test.src");
-            System.err.println("  BasicMachine/Program2_test.src");
-            System.err.println("  src/BasicMachine/Program2_test.src");
+            System.err.println("  " + new File("src/BasicMachine/" + baseName).getPath());
+            System.err.println("  " + new File("BasicMachine/" + baseName).getPath());
+            System.err.println("  " + new File(baseName).getPath());
             return;
         }
 

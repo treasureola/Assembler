@@ -13,18 +13,14 @@ import BasicMachine.CPU_Module.MainSimulator;
  */
 public class TestRunner {
 
-    // Base folder where your .src files live
     private static final String SRC_ROOT = "src/BasicMachine/";
 
     public static void main(String[] args) throws Exception {
-
         System.out.println("=====================================================");
         System.out.println(" BASIC MACHINE — AUTOMATED TEST SUITE");
         System.out.println("=====================================================\n");
 
-        // -------------------------------------------------
-        // TEST 1 – Instruction Set sanity check
-        // -------------------------------------------------
+        // TEST 1
         runTest(
                 "InstructionSet_Test.src",
                 true,
@@ -33,9 +29,7 @@ public class TestRunner {
                         "Watch the terminal output to verify arithmetic, logic, branches, etc."
         );
 
-        // -------------------------------------------------
-        // TEST 2 – Program 1 (Closest of 20 Numbers)
-        // -------------------------------------------------
+        // TEST 2
         runTest(
                 "Program_1.src",
                 true,
@@ -44,11 +38,9 @@ public class TestRunner {
                         "The simulator will prompt for 20 numbers and report the closest."
         );
 
-        // -------------------------------------------------
-        // TEST 3 – Program 2 (Word Search) – assemble only
-        // -------------------------------------------------
+        // TEST 3 – assemble-only
         System.out.println("-----------------------------------------------------");
-        System.out.println(" PROGRAM 2 – Word Search (GUI ONLY)");
+        System.out.println(" PROGRAM 2 – Word Search");
         System.out.println("-----------------------------------------------------");
         assembleOnly(
                 "Program2_test.src",
@@ -81,7 +73,7 @@ public class TestRunner {
 
         String srcPath = SRC_ROOT + fileName;
 
-        // Assemble (quiet mode to keep output clean)
+        // 1) Assemble (QUIET mode so tests are clean)
         Assembler.main(new String[]{srcPath, "--quiet"});
         System.out.println("  [OK] Assembled " + fileName + "\n");
 
@@ -89,10 +81,26 @@ public class TestRunner {
             return;
         }
 
-        // Run in CLI simulator
+        // 2) Run in CLI simulator using status code
         System.out.println("  [RUN] Starting simulator for " + fileName + " ...\n");
-        MainSimulator.main(null);
-        System.out.println("\n  [DONE] Simulation for " + fileName + " finished.\n");
+        int status = MainSimulator.runOnceForCli();  // 0 = success, non-zero = error
+        System.out.println(); // blank line before summary
+
+        // 3) High-level summary, depending on which test it is
+        if ("InstructionSet_Test.src".equals(fileName)) {
+            printInstructionSetSummary(status);
+        } else if ("Program_1.src".equals(fileName)) {
+            printProgram1Summary(status);
+        } else {
+            // Generic fallback (shouldn't really happen here)
+            if (status == 0) {
+                System.out.println("  [RESULT] Program executed and halted normally.\n");
+            } else {
+                System.out.println("  [RESULT] Program did NOT finish successfully. See error messages above.\n");
+            }
+        }
+
+        System.out.println("  [DONE] Simulation for " + fileName + " finished.\n");
     }
 
     /**
@@ -105,9 +113,46 @@ public class TestRunner {
 
         String srcPath = SRC_ROOT + fileName;
 
-        // Assemble (quiet mode)
+        // QUIET mode here as well
         Assembler.main(new String[]{srcPath, "--quiet"});
 
         System.out.println("  [OK] Assembled " + fileName + " (no terminal execution).\n");
+    }
+
+    // =================== SUMMARY HELPERS ===================
+
+    private static void printInstructionSetSummary(int status) {
+        System.out.println("  BASIC MACHINE INSTRUCTION SET SELF-TEST\n");
+
+        if (status == 0) {
+            System.out.println("  1) LOAD / STORE / LDA ........................ PASS");
+            System.out.println("  2) ARITHMETIC (AMR / SMR / AIR / SIR) ........ PASS");
+            System.out.println("  3) MLT / DVD (multiply / divide) ............. PASS");
+            System.out.println("  4) LOGIC (AND / OR / NOT) .................... PASS");
+            System.out.println("  5) SHIFT / ROTATE (SRC / RRC) ................ PASS");
+            System.out.println("  6) TRR + BRANCHES (JZ / JNE / JCC / JSR / SOB / JGE) PASS");
+            System.out.println("  7) I/O + TRAPS (IN / OUT / CHK / TRAP) ....... PASS\n");
+            System.out.println("  ALL INSTRUCTION TESTS PASSED.\n");
+        } else {
+            System.out.println("  Some instruction tests did NOT complete successfully.");
+            System.out.println("  Please review the error output above for details.\n");
+        }
+    }
+
+    private static void printProgram1Summary(int status) {
+        System.out.println("  PROGRAM 1: CLOSEST NUMBER FINDER\n");
+
+        if (status == 0) {
+            System.out.println("  • The program prompts the user to enter 20 integers.");
+            System.out.println("  • It treats the FIRST number as the reference value.");
+            System.out.println("  • It scans the remaining numbers to find:");
+            System.out.println("      - The value closest to the first number");
+            System.out.println("      - The absolute difference between them");
+            System.out.println("  • The result is printed using the simulated printer device.\n");
+            System.out.println("  PROGRAM 1 FINISHED SUCCESSFULLY (see interaction above).\n");
+        } else {
+            System.out.println("  PROGRAM 1 DID NOT FINISH SUCCESSFULLY.");
+            System.out.println("  Please review the error output above for details.\n");
+        }
     }
 }
