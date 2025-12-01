@@ -1,51 +1,54 @@
 #!/bin/bash
-
 set -e
 
-echo "=== Basic Machine Project: Build + Test + Simulator Launch ==="
+echo "=== Basic Machine Simulator: Tests + GUI Launch ==="
 
-# 0) JavaFX setup: use existing JAVAFX_HOME if set, otherwise try to auto-detect
-if [ -z "$JAVAFX_HOME" ]; then
-  # Try a common default path for your machine
-  if [ -d "$HOME/Downloads/javafx-sdk-25" ]; then
-    export JAVAFX_HOME="$HOME/Downloads/javafx-sdk-25"
-    echo "[INFO] Auto-detected JAVAFX_HOME=$JAVAFX_HOME"
-  else
-    echo "[ERROR] JAVAFX_HOME is not set and auto-detect failed."
-    echo "        Please set it manually, e.g.:"
-    echo "        export JAVAFX_HOME=\$HOME/Downloads/javafx-sdk-25"
-    exit 1
-  fi
+# ----------------------------------------------------
+# Resolve script directory
+# ----------------------------------------------------
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+
+JAR="$SCRIPT_DIR/Assembler.jar"
+JFX_DIR="$SCRIPT_DIR/lib"
+JFX_CP="$JFX_DIR/*"
+
+# ----------------------------------------------------
+# Sanity checks
+# ----------------------------------------------------
+if [ ! -f "$JAR" ]; then
+  echo "[ERROR] Assembler.jar not found next to run_all.sh."
+  echo "        Expected: $JAR"
+  exit 1
 fi
 
-echo "[1/4] Cleaning previous build..."
-rm -rf out
-mkdir -p out
+if [ ! -d "$JFX_DIR" ]; then
+  echo "[ERROR] JavaFX libs folder not found."
+  echo "        Expected: $JFX_DIR containing javafx-*.jar files"
+  exit 1
+fi
 
-echo "[INFO] Using JAVAFX_HOME=$JAVAFX_HOME"
+echo "[INFO] Using JAR      = $JAR"
+echo "[INFO] Using JavaFX   = $JFX_DIR"
+echo
 
-# 2) Compile Java sources WITH JavaFX on the module-path
-echo "[2/4] Compiling Java sources..."
-javac \
-  --module-path "$JAVAFX_HOME/lib" \
-  --add-modules javafx.controls,javafx.fxml \
-  -d out \
-  $(find src -name "*.java")
-
-echo "[2.5/4] Copying UI resource files (FXML)..."
-mkdir -p out/BasicMachine/simulator/ui
-cp src/BasicMachine/simulator/ui/simulator.fxml out/BasicMachine/simulator/ui/
-
-# 3) Run TestRunner (InstructionSet_Test + Program_1 in terminal, Program2_test assembled only)
-echo "[3/4] Running Assembler + CLI Tests via TestRunner..."
+# ----------------------------------------------------
+# 1) Run CLI test suite
+# ----------------------------------------------------
+echo "[1/2] Running assembler + CPU tests (CLI)..."
 java \
-  -cp out \
+  -cp "$JAR:$JFX_CP" \
   BasicMachine.TestRunner
 
-# 4) Launch GUI Simulator (you IPL Program2_test load.ld yourself)
-echo "[4/4] Launching GUI Simulator..."
+echo
+echo "[1/2] CLI tests completed."
+echo
+
+# ----------------------------------------------------
+# 2) Launch GUI Simulator
+# ----------------------------------------------------
+echo "[2/2] Launching JavaFX GUI simulator..."
 java \
-  --module-path "$JAVAFX_HOME/lib" \
+  --module-path "$JFX_DIR" \
   --add-modules javafx.controls,javafx.fxml \
-  -cp out \
+  -cp "$JAR" \
   BasicMachine.simulator.ui.SimulatorApp
