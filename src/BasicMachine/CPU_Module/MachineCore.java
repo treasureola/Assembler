@@ -3,7 +3,7 @@ package BasicMachine.CPU_Module;
 import BasicMachine.Memory_Module.Memory;
 import BasicMachine.simulator.ui.SimulatorController;
 
-import java.util.Scanner;
+import java.io.*;
 
 /**
  * MachineCore.java
@@ -20,19 +20,31 @@ public class MachineCore {
     private Runnable onCycleListener;
     private java.util.function.Consumer<String> printerOutput;
     private ExecutionListener listener;
+
+    // TRAP / Program 2 state
     private volatile String pendingConsoleInput = null;
-    // true when we expect the next Console Input from the GUI to satisfy TRAP 1
     private volatile boolean waitingForTrap1Input = false;
+
+    // Paragraph sentences loaded by TRAP 0 (from Sentences.txt)
+    // TRAP 1 uses this for semantic search (sentence # / word #)
     private String[] paragraphSentences = null;
 
+    // Base addresses used by Program 2
+    private static final int PARAGRAPH_BASE_ADDR = 0x300; // 0300 (paragraph)
+    private static final int WORD_BASE_ADDR      = 0x400; // 0400 (search word)
 
     public void setExecutionListener(ExecutionListener l) { this.listener = l; }
     private void narrate(String s) { if (listener != null) listener.onNarrative(s); }
-    public void setPrinterOutput(java.util.function.Consumer<String> printerOutput) { this.printerOutput = printerOutput; }
+
+    public void setPrinterOutput(java.util.function.Consumer<String> printerOutput) {
+        this.printerOutput = printerOutput;
+    }
+
     private void printToPrinter(String msg) {
         if (printerOutput != null) printerOutput.accept(msg + "\n");
         else System.out.println(msg);
     }
+
     public void provideConsoleInput(String line) {
         // called from GUI "Send" button
         if (line == null) line = "";
@@ -139,18 +151,14 @@ public class MachineCore {
     private void execCHK(int r, int devId) {
         int ready = 1; // For simulation, assume device is always ready
         regs.setGPRValue(r, ready);
-//        printToPrinter(String.format("[CHK] R%d ← dev=%d ready=%d", r, devId, ready));
     }
 
     private void execTRAP(int trapVector) {
-        // Small header line so you still see which trap fired
-//        printToPrinter(String.format("[TRAP] Trap vector %d activated\n", trapVector));
-
         switch (trapVector) {
-            case 0 -> { // TRAP 0: Read file (6 sentences into memory at address 0300)
-                loadSampleParagraph();  // loads AND prints sentences
+            case 0 -> { // TRAP 0: Read paragraph from file and print it
+                loadSampleParagraph();
             }
-            case 1 -> { // TRAP 1: Get user input word + search
+            case 1 -> { // TRAP 1: Get user word + search
                 getUserInputAndSearch();
             }
             default -> printToPrinter(String.format("[TRAP] Unknown trap vector: %d\n", trapVector));
@@ -158,7 +166,7 @@ public class MachineCore {
     }
 
     // Wait for a line of input from either the GUI console (if present)
-// or from stdin (text-mode simulator fallback).
+    // or from stdin (text-mode simulator fallback).
     private String waitForConsoleInput(String prompt) {
         SimulatorController ui = SimulatorController.activeInstance;
         if (ui != null) {
@@ -170,46 +178,92 @@ public class MachineCore {
         }
     }
 
-
     /**
      * TRAP 0:
-     *  - Loads 6 sentences into memory starting at 0300
-     *  - Prints those sentences on the printer (Program 2 requirement)
+     *  - Reads up to 6 sentences from Sentences.txt
+     *  - Stores them in memory starting at PARAGRAPH_BASE_ADDR (0300)
+     *  - Saves them in paragraphSentences for TRAP 1
+     *  - Prints the sentences on the simulated printer
      */
     private void loadSampleParagraph() {
-        // Sample 6 sentences for testing
-        paragraphSentences = new String[] {
-                "The quick brown fox jumps over the lazy dog.",
-                "Programming is fun and challenging at the same time.",
-                "Computer science teaches us how to solve problems.",
-                "Assembly language is low level but very powerful.",
-                "Cache memory improves system performance significantly.",
-                "Operating systems manage hardware and software resources."
-        };
+        try {
+            File cwd = new File(System.getProperty("user.dir"));
+            File f1 = new File(cwd, "Sentences.txt"); // CWD (e.g., project root or out/)
+            File parent = cwd.getParentFile();
+            File f2 = (parent != null) ? new File(parent, "Sentences.txt") : null;
 
-        int baseAddr = 0x300;  // 0300 (octal)
-        int addr     = baseAddr;
+            File f = null;
+            if (f1.exists())      f = f1;
+            else if (f2 != null && f2.exists()) f = f2;
 
-        printToPrinter(String.format("[INFO] File Read: Reading Sentences into memory\n",
-                paragraphSentences.length, baseAddr));
-//        printToPrinter.appendText("[READY] Basic Machine Simulator initialized.\n");
-
-        // Write each sentence into memory, null-terminated, and print it
-        for (String sentence : paragraphSentences) {
-            for (char c : sentence.toCharArray()) {
-                memory.writeWordDirect(addr, (int) c);
-                addr++;
+            if (f == null || !f.exists()) {
+                printToPrinter("[FILE ERROR] Sentences.txt not found.");
+                // ensure TRAP 1 knows nothing is loaded
+                paragraphSentences = null;
+                return;
             }
-            // Null terminator between sentences
-            memory.writeWordDirect(addr, 0);
-            addr++;
 
-            // Print on the console printer
-            printToPrinter(sentence + "\n");
+            java.util.List<String> sentences = new java.util.ArrayList<>();
+
+            try (BufferedReader br = new BufferedReader(new FileReader(f))) {
+                String line;
+                while ((line = br.readLine()) != null) {
+                    line = line.trim();
+                    if (line.isEmpty()) continue;
+                    sentences.add(line);
+                }
+            }
+
+            if (sentences.isEmpty()) {
+                printToPrinter("[FILE ERROR] Sentences.txt is empty.");
+                paragraphSentences = null;
+                return;
+            }
+
+            // Store characters in memory starting at PARAGRAPH_BASE_ADDR,
+            // null-terminated per sentence.
+            int addr = PARAGRAPH_BASE_ADDR;
+            for (String s : sentences) {
+                for (char c : s.toCharArray()) {
+                    memory.writeWordDirect(addr++, (int) c);
+                }
+                memory.writeWordDirect(addr++, 0); // sentence terminator
+            }
+
+            // Expose sentences to TRAP 1 for semantic search
+            paragraphSentences = sentences.toArray(new String[0]);
+
+            printToPrinter("[INFO] File Read: Reading Sentences into memory\n\n");
+
+            // Print them out via the simulated printer (as required by Program 2)
+            addr = PARAGRAPH_BASE_ADDR;
+            for (int i = 1; i <= paragraphSentences.length; i++) {
+                printSentenceFromMemory(i, addr);
+                addr = skipToNextSentence(addr);
+            }
+
+        } catch (Exception e) {
+            printToPrinter("[FILE ERROR] " + e.getMessage());
+            paragraphSentences = null;
+        }
+    }
+
+    private void printSentenceFromMemory(int sentenceNum, int addr) {
+        StringBuilder sb = new StringBuilder();
+        int val;
+
+        while ((val = memory.readForCPU(addr++)) != 0) {
+            sb.append((char)val);
         }
 
-        printToPrinter(String.format("[INFO] File read: %d sentences loaded into memory at %04o\n",
-                paragraphSentences.length, baseAddr));
+        printToPrinter(sb.toString() + "\n\n");
+    }
+
+    private int skipToNextSentence(int addr) {
+        while (memory.readForCPU(addr) != 0) {
+            addr++;
+        }
+        return addr + 1; // move past null terminator
     }
 
     /**
@@ -232,7 +286,7 @@ public class MachineCore {
         }
 
         // Store word at 0400 in memory (as Program 2 expects)
-        int baseAddr = 0x400; // 0400
+        int baseAddr = WORD_BASE_ADDR;
         for (int i = 0; i < word.length(); i++) {
             memory.writeWordDirect(baseAddr + i, (int) word.charAt(i));
         }
@@ -251,7 +305,7 @@ public class MachineCore {
      * or a "not found" message.
      */
     private void searchWordInParagraph(String word) {
-        if (paragraphSentences == null) {
+        if (paragraphSentences == null || paragraphSentences.length == 0) {
             printToPrinter("[TRAP 1] No paragraph loaded (call TRAP 0 first).\n");
             return;
         }
@@ -285,6 +339,7 @@ public class MachineCore {
         }
     }
 
+    // (Older helper retained; not used by TRAP 1 anymore but harmless)
     private void getUserInput() {
         String word = waitForConsoleInput(
                 "[INPUT] Enter the search word in the Console Input field and press Send");
@@ -297,7 +352,7 @@ public class MachineCore {
             word = "the";   // default for non-GUI runs
         }
 
-        int baseAddr = 0x400; // 0400
+        int baseAddr = WORD_BASE_ADDR;
         for (int i = 0; i < word.length(); i++) {
             memory.writeWordDirect(baseAddr + i, (int) word.charAt(i));
         }
@@ -306,7 +361,6 @@ public class MachineCore {
         narrate(String.format("[TRAP 1] Input word '%s' stored at address %04o",
                 word, baseAddr));
     }
-
 
     // Helper method for execution logging
     private void printExec(String instr) {
@@ -321,7 +375,8 @@ public class MachineCore {
         return ea & 0x7FF;
     }
 
-    // Instruction execution methods (stubs for now)
+    // ==================== INSTRUCTION IMPLEMENTATIONS ====================
+
     private void execLDR(int r, int ix, int i, int a5) {
         int ea = calculateEA(ix, i, a5);
         int value = memory.readForCPU(ea) & 0xFFFF;
@@ -370,7 +425,6 @@ public class MachineCore {
     }
 
     private void execSRC(int r, int i, int a5) {
-        // Shift/rotate - simplified implementation
         int count = a5 & 0x1F;
         int value = regs.getGPRValue(r);
         if (i == 0) regs.setGPRValue(r, (value << count) & 0xFFFF);
@@ -378,25 +432,21 @@ public class MachineCore {
     }
 
     private void execRRC(int r, int a5) {
-        // Rotate right - simplified
         int count = a5 & 0x1F;
         int value = regs.getGPRValue(r);
         regs.setGPRValue(r, ((value >>> count) | (value << (16 - count))) & 0xFFFF);
     }
 
     private void execRFS(int a5) {
-        // Return from subroutine - simplified
         regs.setPC(a5 & 0x7FF);
     }
 
     private void execMLT(int r, int ix) {
-        // Multiply - simplified
         int result = (regs.getGPRValue(r) * regs.getGPRValue(ix)) & 0xFFFF;
         regs.setGPRValue(r, result);
     }
 
     private void execDVD(int r, int ix) {
-        // Divide - simplified
         int divisor = regs.getGPRValue(ix);
         if (divisor != 0) {
             regs.setGPRValue(r, (regs.getGPRValue(r) / divisor) & 0xFFFF);
@@ -404,7 +454,6 @@ public class MachineCore {
     }
 
     private void execTRR(int r, int ix) {
-        // Test register - simplified
         int result = (regs.getGPRValue(r) == regs.getGPRValue(ix)) ? 1 : 0;
         regs.setCC(result);
     }
@@ -448,7 +497,6 @@ public class MachineCore {
     }
 
     private void execJSR(int ix, int i, int a5) {
-        // Jump to subroutine - simplified
         int ea = calculateEA(ix, i, a5);
         regs.setGPRValue(3, regs.getPC()); // Save return address in R3
         regs.setPC(ea);
@@ -472,7 +520,6 @@ public class MachineCore {
     }
 
     private void execIN(int r, int dev) {
-        // Input - simplified: read from memory address based on device
         int addr = 0x200 + dev; // Device buffer area
         int value = memory.readForCPU(addr) & 0xFFFF;
         regs.setGPRValue(r, value);
@@ -480,13 +527,11 @@ public class MachineCore {
     }
 
     private void execOUT(int r, int dev) {
-        // Output - simplified: write to printer
         int value = regs.getGPRValue(r) & 0xFF; // Only low byte
         narrate("[HALT] Program finished.");
     }
 
     private void execHLT() {
         halted = true;
-//        printToPrinter("[HALT] Program finished.");
     }
 }
